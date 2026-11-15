@@ -1,0 +1,603 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/sklaxs/luo/schema/luo.schema.json",
+  "title": "Luo - Plan de continuite d'activite informatique metier",
+  "description": "Schema de donnees commun aux versions locale (HTML/JS) et hebergee (Django) de Luo. Contrat unique de la source de verite.",
+  "type": "object",
+  "required": ["version_schema", "organisation", "entites", "systemes_information"],
+  "properties": {
+    "version_schema": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "description": "Version semver du schema. Incremente a chaque evolution incompatible."
+    },
+    "organisation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "nom": { "type": "string" },
+        "reference_pca": { "type": "string", "description": "Reference interne du dispositif PCA (ex: classeur rouge)." }
+      },
+      "required": ["nom"]
+    },
+    "entites": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/entite" }
+    },
+    "systemes_information": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/systeme_information" }
+    },
+    "directions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/direction" }
+    },
+    "applications": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/application" }
+    },
+    "processus_macro": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/processus_macro" }
+    },
+    "processus_micro": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/processus_micro" }
+    },
+    "scenarios": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/scenario" }
+    },
+    "plans_continuite": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/plan_continuite" }
+    },
+    "actions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/action" }
+    },
+    "utilisateurs": {
+      "type": "array",
+      "description": "Uniquement en version hebergee. Absent de la version locale (mono-utilisateur RSSI).",
+      "items": { "$ref": "#/$defs/utilisateur" }
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"
+    },
+    "niveau_dependance": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 4,
+      "description": "1 mineur, 2 faible, 3 significatif, 4 critique."
+    },
+    "priorite_service": {
+      "type": "string",
+      "enum": ["imperatif", "3_jours", "1_semaine", "1_mois", "1_trimestre"],
+      "description": "Duree d'interruption acceptable : imperatif = maintien impératif ; puis 3 jours, 1 semaine, 1 mois, 1 trimestre."
+    },
+    "periode_critique": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["description"],
+      "properties": {
+        "description": { "type": "string", "description": "Ex : paie, clôture budgétaire, élections, période hivernale." },
+        "mois_debut": { "type": "integer", "minimum": 1, "maximum": 12 },
+        "mois_fin": { "type": "integer", "minimum": 1, "maximum": 12 },
+        "jours_mois": { "type": "array", "items": { "type": "integer", "minimum": 1, "maximum": 31 }, "description": "Ex : [25, 26] pour l'édition des paies." }
+      }
+    },
+    "entite": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "nom"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "nom": { "type": "string" },
+        "code": { "type": "string" },
+        "active": { "type": "boolean", "default": true, "description": "Une nouvelle entite peut etre ajoutee sans toucher aux existantes." }
+      }
+    },
+    "systeme_information": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "nom"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "nom": { "type": "string" },
+        "type": {
+          "type": "string",
+          "enum": ["gestion", "geographique", "industriel", "batimentaire", "autre"]
+        },
+        "description": { "type": "string" },
+        "sites_hebergement": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Data centers ou sites internes hebergeant le SI. Sert a affiner les scenarios localises (incendie d'un site)."
+        }
+      }
+    },
+    "direction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "nom", "entite_id"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "nom": { "type": "string" },
+        "entite_id": { "$ref": "#/$defs/id" },
+        "directeur": { "$ref": "#/$defs/personne" },
+        "localisation": { "type": "string", "description": "Sites ou se repartit la direction, si diffuse." }
+      }
+    },
+    "personne": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nom"],
+      "properties": {
+        "nom": { "type": "string" },
+        "fonction": { "type": "string" },
+        "telephone": { "type": "string" },
+        "email": { "type": "string" }
+      }
+    },
+    "application": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "nom_officiel"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "nom_officiel": { "type": "string", "description": "Nom editeur, unique pour toute l'organisation." },
+        "alias": {
+          "type": "array",
+          "description": "Rebranding par entite : un meme logiciel peut porter plusieurs noms locaux.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["entite_id", "nom_local"],
+            "properties": {
+              "entite_id": { "$ref": "#/$defs/id" },
+              "nom_local": { "type": "string" }
+            }
+          }
+        },
+        "editeur": { "type": "string" },
+        "categorie": { "type": "string", "description": "Ex : metier, bureautique, GAEB/ERP, supervision industrielle." },
+        "hebergement": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "mode": {
+              "type": "string",
+              "enum": ["interne", "saas", "cloud_public", "prestataire", "poste_travail", "inconnu"]
+            },
+            "localisation": { "type": "string" },
+            "accessibilite": {
+              "type": "string",
+              "enum": ["reseau_interne", "internet", "les_deux"],
+              "description": "Une application SaaS accessible depuis Internet reste joignable meme SI interne coupe."
+            }
+          }
+        },
+        "contrat": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "reference": { "type": "string" },
+            "editeur_contact": { "type": "string" },
+            "support_contact": { "type": "string" },
+            "date_echeance": { "type": "string", "format": "date" }
+          }
+        },
+        "si_operants": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/id" },
+          "description": "Un ou plusieurs SI operent ou hebergent l'application. Une application peut echanger entre plusieurs SI."
+        },
+        "criticite": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "niveau": { "$ref": "#/$defs/niveau_dependance" },
+            "justification": { "type": "string" }
+          }
+        },
+        "disponibilite": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "horaires_habituels": { "type": "string", "description": "Ex : 8h-18h." },
+            "jours": { "type": "string", "description": "Ex : lundi-vendredi." },
+            "periodes_critiques": { "type": "array", "items": { "$ref": "#/$defs/periode_critique" } }
+          }
+        },
+        "disponible_sans_si_interne": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "valeur": { "type": "boolean" },
+            "justification": { "type": "string", "description": "Ex : SaaS, contrat actif, accessible depuis Internet." }
+          }
+        },
+        "cmdb": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "id_externe": { "type": "string" },
+            "dernier_import": { "type": "string", "format": "date" },
+            "source": { "type": "string" }
+          }
+        },
+        "actif": { "type": "boolean", "default": true, "description": "False si decommisionnee, pour garder l'historique des imports." }
+      }
+    },
+    "processus_macro": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "nom"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "nom": { "type": "string" },
+        "description": { "type": "string" },
+        "validation": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "date": { "type": "string", "format": "date" },
+            "validateur": { "type": "string", "description": "Typiquement la direction generale." }
+          }
+        },
+        "niveau_sensibilite": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4,
+          "description": "Orientation : ou commencer la demarche PCA sur la cartographie macro."
+        }
+      }
+    },
+    "processus_micro": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "nom", "direction_id", "priorite_service"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "nom": { "type": "string" },
+        "description": { "type": "string" },
+        "macro_id": { "$ref": "#/$defs/id" },
+        "direction_id": { "$ref": "#/$defs/id" },
+        "priorite_service": { "$ref": "#/$defs/priorite_service" },
+        "referent_interne": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "personne": { "$ref": "#/$defs/personne" },
+            "date_validation": { "type": "string", "format": "date" },
+            "prochaine_revalidation": { "type": "string", "format": "date", "description": "Challenge annuel du referent." }
+          }
+        },
+        "points_contact_usager": {
+          "type": "array",
+          "description": "Comment les usagers internes ou externes joignent le service pendant la crise.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type", "libelle"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["physique", "telephone_fixe", "telephone_portable", "mail", "accueil", "autre"]
+              },
+              "libelle": { "type": "string" },
+              "localisation": { "type": "string", "description": "Si contact physique : ou trouver le service, si sa localisation est connue." }
+            }
+          }
+        },
+        "dependances_applications": {
+          "type": "array",
+          "description": "Application par application : niveau de dependance, justification, periodes de renforcement.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["application_id", "niveau"],
+            "properties": {
+              "application_id": { "$ref": "#/$defs/id" },
+              "niveau": { "$ref": "#/$defs/niveau_dependance" },
+              "justification": { "type": "string" },
+              "periodes_renforcement": {
+                "type": "array",
+                "items": { "$ref": "#/$defs/periode_critique" }
+              }
+            }
+          }
+        },
+        "note_processus": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Champ calcule, non saisi : voir la formule dans la spec.",
+          "properties": {
+            "dependance_tic": { "$ref": "#/$defs/niveau_dependance", "description": "Calcule depuis dependances_applications." },
+            "valeur": { "type": "integer", "minimum": 1, "maximum": 16 },
+            "scenario_id": { "$ref": "#/$defs/id" },
+            "date_calcul": { "type": "string", "format": "date" }
+          }
+        }
+      }
+    },
+    "scenario": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "nom", "type"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "nom": { "type": "string", "description": "Ex : Mise en securite du SI de gestion consecutive a un ransomware." },
+        "type": {
+          "type": "string",
+          "enum": ["ransomware", "ddos", "panne_logicielle", "coupure_electrique", "coupure_reseau", "incendie", "sinistre_batiment", "compromission_saas", "autre"]
+        },
+        "description": { "type": "string", "description": "Format libre." },
+        "postulats": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Hypotheses de cadrage : messagerie indisponible, reseaux internes coupes, acces Internet maintenu ou non, etc."
+        },
+        "si_impactes": { "type": "array", "items": { "$ref": "#/$defs/id" } },
+        "sites_impactes": { "type": "array", "items": { "type": "string" } },
+        "entites_impactees": { "type": "array", "items": { "$ref": "#/$defs/id" } },
+        "duree_indisponibilite_estimee": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "min_jours": { "type": "integer" },
+            "max_jours": { "type": "integer" }
+          }
+        },
+        "mesures_si_attendues": {
+          "type": "array",
+          "description": "Mesures operees par la direction informatique. Chaque mesure peut exiger un prerequis cote metier.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["nom"],
+            "properties": {
+              "nom": { "type": "string" },
+              "description": { "type": "string" },
+              "prerequis_metier": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Travail attendu de la direction metier en amont pour que la mesure SI fonctionne."
+              }
+            }
+          }
+        }
+      }
+    },
+    "plan_continuite": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "processus_id", "scenario_id"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "processus_id": { "$ref": "#/$defs/id" },
+        "scenario_id": { "$ref": "#/$defs/id" },
+        "statut": {
+          "type": "string",
+          "enum": ["brouillon", "en_revue", "valide", "obsolete"]
+        },
+        "etapes": {
+          "type": "array",
+          "description": "Avancement du plan, etape par etape. Sert au reporting direction par direction.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["nom", "statut"],
+            "properties": {
+              "nom": { "type": "string", "enum": ["cartographie", "identification_applications", "qualification", "atelier_referent", "activites", "procedures_actions", "revue_dg", "validation"] },
+              "statut": { "type": "string", "enum": ["a_faire", "en_cours", "fait"] },
+              "date": { "type": "string", "format": "date" }
+            }
+          }
+        },
+        "avancement": { "type": "integer", "minimum": 0, "maximum": 100, "description": "Champ calcule depuis etapes." },
+        "validation": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "date": { "type": "string", "format": "date" },
+            "validateur": { "type": "string" }
+          }
+        },
+        "activites": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["nom", "mode"],
+            "properties": {
+              "nom": { "type": "string" },
+              "description": { "type": "string" },
+              "mode": {
+                "type": "string",
+                "enum": ["maintenue", "degradee", "arrete", "nouvelle"],
+                "description": "maintenue : telle quelle ; degradee : comment ; arrete : pour combien de temps ; nouvelle : creee pour pallier."
+              },
+              "modalites": {
+                "type": "string",
+                "description": "Comment on maintient ou degrade sans informatique : triage, renforts externes, charge accrue, etc."
+              },
+              "duree_arret_min_jours": {
+                "type": "integer",
+                "description": "Si mode arrete : delai minimal avant reprise."
+              },
+              "urgence_retablissement": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 5,
+                "description": "Rang de priorite de retablissement de l'activite dans la gestion de crise informatique."
+              },
+              "application_ids": { "type": "array", "items": { "$ref": "#/$defs/id" } }
+            }
+          }
+        },
+        "procedures": {
+          "type": "array",
+          "description": "Procedures applicables en cas de cybercrise : existantes (papier, tableurs) ou a creer (ex : export de donnees).",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["nom"],
+            "properties": {
+              "nom": { "type": "string" },
+              "statut": { "type": "string", "enum": ["existante", "a_creer"] },
+              "support": { "type": "string", "enum": ["papier", "tableur", "traitement_texte", "numerique_externe", "autre"] },
+              "reference_document": { "type": "string", "description": "Ou la trouver, ou la deposer : classeur rouge." },
+              "responsable_maj": { "type": "string" },
+              "frequence_maj": { "type": "string" }
+            }
+          }
+        },
+        "actions_recurrentes": {
+          "type": "array",
+          "description": "Actions de maintien du plan : listing clients a jour, tests de procedure, exports.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["nom", "frequence"],
+            "properties": {
+              "nom": { "type": "string" },
+              "frequence": { "type": "string" },
+              "responsable": { "type": "string" },
+              "livrable": { "type": "string", "description": "Ex : listing clients nom + telephone." },
+              "derniere_execution": { "type": "string", "format": "date" },
+              "prochaine_echeance": { "type": "string", "format": "date" }
+            }
+          }
+        },
+        "fichiers_a_exporter": {
+          "type": "array",
+          "description": "Donnees exportees regulierement en vue du PCA, reprises sur PC hors domaine.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["nom"],
+            "properties": {
+              "nom": { "type": "string" },
+              "contenu": { "type": "string" },
+              "format": { "type": "string" },
+              "frequence": { "type": "string" },
+              "responsable": { "type": "string" },
+              "lieu_stockage": { "type": "string", "description": "Typiquement le PC hors domaine de la direction." }
+            }
+          }
+        },
+        "mots_de_passe": {
+          "type": "array",
+          "description": "Strategie d'acces aux applications restees disponibles : export depuis le gestionnaire ou memorisation par les agents.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["application_id", "strategie"],
+            "properties": {
+              "application_id": { "$ref": "#/$defs/id" },
+              "strategie": { "type": "string", "enum": ["export", "memorisation", "non_necessaire"] },
+              "gestionnaire": { "type": "string" },
+              "responsable": { "type": "string" }
+            }
+          }
+        },
+        "pc_hors_domaine": {
+          "type": "array",
+          "description": "PC non integres au domaine, avec suite bureautique, lecteur PDF et donnees exportees de la direction.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["nom"],
+            "properties": {
+              "nom": { "type": "string" },
+              "utilisateur": { "type": "string" },
+              "localisation": { "type": "string" },
+              "configuration": { "type": "string" },
+              "donnees": { "type": "string" }
+            }
+          }
+        },
+        "communication": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "interne": { "$ref": "#/$defs/volet_communication" },
+            "externe": { "$ref": "#/$defs/volet_communication" }
+          }
+        }
+      }
+    },
+    "volet_communication": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "reste_operationnel": { "type": "array", "items": { "type": "string" } },
+        "plus_operationnel": { "type": "array", "items": { "type": "string" } },
+        "modalites_sollicitation": { "type": "string" },
+        "referent": { "$ref": "#/$defs/personne" },
+        "suppleant": { "$ref": "#/$defs/personne" }
+      }
+    },
+    "action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "descriptif"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "descriptif": { "type": "string" },
+        "type": {
+          "type": "string",
+          "enum": ["construction", "recherche", "revalidation", "test", "autre"],
+          "description": "construction : tache du plan de construction des PCA. recherche : investiguation necessaire avant redaction. revalidation : challenge annuel."
+        },
+        "processus_id": { "$ref": "#/$defs/id" },
+        "plan_id": { "$ref": "#/$defs/id" },
+        "referent": { "$ref": "#/$defs/personne", "description": "Acteur identifie en charge." },
+        "acteur": { "type": "string", "description": "En version locale : typiquement le RSSI seul." },
+        "date_cible": { "type": "string", "format": "date" },
+        "statut": { "type": "string", "enum": ["a_faire", "en_cours", "fait", "annule"] },
+        "recurrence": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "frequence": { "type": "string" },
+            "relances": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["delai_jours"],
+                "properties": {
+                  "delai_jours": { "type": "integer", "description": "Jours avant l'echeance." },
+                  "canal": { "type": "string", "enum": ["notification_locale", "email"], "description": "email : version hebergee uniquement." }
+                }
+              }
+            }
+          }
+        },
+        "notes": { "type": "string" }
+      }
+    },
+    "utilisateur": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "email", "role"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "nom": { "type": "string" },
+        "email": { "type": "string" },
+        "role": {
+          "type": "string",
+          "enum": ["rssi", "board", "directeur", "referent"],
+          "description": "rssi : administration complete. board : lecture des PCA de son entite. directeur : lecture/ecriture des processus de sa direction. referent : edition des processus dont il est referent."
+        },
+        "entites_autorisees": { "type": "array", "items": { "$ref": "#/$defs/id" } },
+        "directions_autorisees": { "type": "array", "items": { "$ref": "#/$defs/id" } }
+      }
+    }
+  }
+}
