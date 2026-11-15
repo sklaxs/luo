@@ -1,6 +1,6 @@
 # Luo - Cadrage du developpement
 
-Version 0.1 - 15/11/2026
+Version 0.2 - 15/11/2026
 
 ## 1. Contexte
 
@@ -41,8 +41,7 @@ Luo doit permettre, dans un seul outil :
   domaine et volets communication;
 - suivre l'avancement de construction des plans, direction par direction, et piloter les
   actions par echeance avec relances;
-- generer le livrable de direction generale (support de presentation type PowerPoint actuel)
-  sans ressaisie.
+- presenter les plans a la direction generale sans entrer dans le detail operationnel.
 
 ## 3. Principes directeurs
 
@@ -59,8 +58,59 @@ Luo doit permettre, dans un seul outil :
    d'une entite est une operation de donnee, pas de structure.
 6. Donnees calculees et tracees : la note de processus, l'avancement et les applications
    impactees par scenario sont derives des donnees saisies, jamais ressaisies.
+7. Sobriete fonctionnelle : chaque ecran repond a une tache ; pas de fonctionnalite sans
+   cas d'usage issu de la demarche PCA ; la complexite est masquee, pas supprimee (voir 4).
 
-## 4. Schéma de donnees
+## 4. Principes UX
+
+L'effort UX est une exigence de premier rang, au meme titre que le modele de donnees. Trois
+objectifs : que la personne comprenne ce qui lui est demande au moment ou on le lui demande,
+que l'outil reste simple tant que faire se peut, et que la direction generale lise une
+synthese sans se confronter au detail.
+
+### 4.1 Comprendre ce qui est demande
+
+- Saisie par etapes type assistant : un ecran, une question, une reponse. L'utilisateur ne
+  voit jamais l'integralite de la fiche en cours de construction.
+- Libelles en langage metier, jamais en jargon informatique. Les echelles sont explicites
+  au moment du choix : la dependance 1 a 4 affiche sa legende (mineur, faible, significatif,
+  critique) avec un exemple, pas dans une aide a part.
+- Justifications guidees : chaque champ qualitatif est precede de la question a laquelle il
+  repond (pourquoi cette dependance, comment cette activite est degradee).
+- Mode atelier : questionnaire imprimable genere par processus pour preparer et mener
+  l'atelier avec le referent interne. L'outil le produit depuis les donnees deja saisies
+  et sert de support de ressaisie, jamais de double saisie parallele.
+- Aides contextuelles : infobulle par champ, exemple pre-rempli grise dans les champs libres.
+- Tout champ requis explique sa raison. Rien d'obligatoire cache ou implicite.
+
+### 4.2 Maitriser la complexite
+
+- Un perimetre par ecran : la fiche plan complete n'est jamais affichee d'un bloc, la
+  navigation se fait par sections.
+- Options avancees repliees par defaut (periodes de renforcement, urgences de
+  retablissement, prerequis metier, periodes critiques des applications).
+- Reutilisation systematique : referents, points de contact, applications et procedures
+  saisis une fois sont proposes automatiquement partout ou ils sont pertonents.
+- Pas de parametrage superflu au demarrage : les enumerations du schema font foi ; aucune
+  gestion de typologies personnalisables avant qu'un besoin reel n'apparaisse.
+- Terminologie unique : un concept, un libelle, dans l'outil comme dans les livrables.
+- Erreurs exprimees en consequence metier (ce processus reste incomplet car sa priorite
+  de service n'est pas validee), pas en message technique.
+
+### 4.3 Presenter a la direction generale sans entrer dans le detail
+
+- Vue executive par processus : un ecran de synthese avec la note, la priorite de service,
+  la repartition des activites (maintenues, degradees, arretees, nouvelles), les durees
+  d'arret minimales et l'avancement. Sans les procedures, ni les fichiers a exporter, ni
+  la saisie detaillee.
+- Vue d'ensemble par direction et par entite : processus les plus prioritaires, avancement,
+  actions en retard, revalidations a echeance.
+- Deux gabarits de generation de livrable : executif (support de direction generale,
+  condense, une a deux diapositives par processus) et complet (fiche referent, alimente le
+  classeur rouge). Le gabarit executif est derive du complet, pas redige separement.
+- Role board de la version hebergee : acces a la vue executive uniquement.
+
+## 5. Schema de donnees
 
 Reference : schema/luo.schema.json (JSON Schema 2020-12). Un fichier de donnees Luo est un
 document JSON conforme a ce schema, utilisable tel quel en import/export par la version
@@ -115,9 +165,9 @@ un site impacte. Les applications hebergees hors SI interne (SaaS, Internet) res
 disponibles sauf si le scenario vise explicitement le SI de gestion (messagerie, gestionnaire
 de mots de passe). C'est le role des postulats du scenario de trancher ces cas limites.
 
-## 5. Modules fonctionnels
+## 6. Modules fonctionnels
 
-### 5.1 Entites et cartographie
+### 6.1 Entites et cartographie
 
 - Saisie des entites, directions, referents de direction.
 - Cartographie macro : visualisation de l'ensemble des processus macro, validation DG,
@@ -127,7 +177,7 @@ de mots de passe). C'est le role des postulats du scenario de trancher ces cas l
   pratiques usuelles de cartographie des processus (typologie ISO 9001 : processus de
   pilotage, de realisation, de support) ; a documenter avant implementation.
 
-### 5.2 Applications
+### 6.2 Applications
 
 - Import CSV depuis la CMDB : colonnes id externe, nom officiel, editeur, hebergement,
   SI operants, criticite. Reimport regulier : reconciliation par id externe, ajout des
@@ -137,15 +187,16 @@ de mots de passe). C'est le role des postulats du scenario de trancher ces cas l
   recherche. Une recherche doit trouver l'application quel que soit le nom local utilise.
 - Disponibilite : horaires habituels, jours, periodes critiques calendarisees.
 
-### 5.3 Qualification
+### 6.3 Qualification
 
 - Par processus : selection des applications dependantes, niveau 1-4 avec justification
   obligatoire, periodes de renforcement (ex : dependance accrue en fin de mois pour la paie).
 - Priorite de service du processus, validable en atelier avec le directeur puis le referent
   interne (double validation tracee).
 - Note de processus calculee par scenario, modifiable.
+- Mode atelier : generation du questionnaire imprimable du processus pour l'atelier.
 
-### 5.4 Scenarios
+### 6.4 Scenarios
 
 Catalogue initial propose (chacun devant justifier un PCA des sa duree estimee depasse la
 demi-journee) :
@@ -164,7 +215,7 @@ demi-journee) :
 Format libre pour la description, avec postulats obligatoires pour fixer les regles de
 derivation (messagerie, Internet, mots de passe).
 
-### 5.5 Mesures SI attendues et prerequis metier
+### 6.5 Mesures SI attendues et prerequis metier
 
 Chaque scenario liste les mesures que la direction informatique operera, et pour chacune
 le travail attendu de la direction metier en amont. Exemples pour un ransomware SI de
@@ -186,7 +237,7 @@ industriel (reponse a la question ouverte) :
 - convention ecrite avec la direction informatique sur les fenetres de reprise et les
   priorites de retablissement des organes de conduite.
 
-### 5.6 Plans de continuite
+### 6.6 Plans de continuite
 
 Pour chaque couple processus / scenario, la fiche reprend la structure actuelle du
 PowerPoint, en richer :
@@ -207,15 +258,21 @@ PowerPoint, en richer :
   modalites de sollicitation, referent communication et suppleant, exportables vers les
   equipes communication.
 
-### 5.7 Reporting
+La fiche est construite ecran par ecran selon les principes UX (section 4), jamais affichee
+comme un formulaire unique.
+
+### 6.7 Reporting
 
 - Avancement par direction : pourcentage issu des etapes de chaque plan, vue par entite
   et globale.
+- Vue direction generale : synthese executive par direction (processus prioritaires,
+  avancement, actions en retard, revalidations dues), sans detail operationnel. C'est la
+  vue par defaut du role board.
 - Vue referents : date de derniere validation, prochaine revalidation annuelle, alertes.
 - Vue applications : couverture de la cartographie (applications sans processus dependant,
   processus critiques sans application identifiee).
 
-### 5.8 Actions et relances
+### 6.8 Actions et relances
 
 - Action : descriptif, referent, acteur, date cible, statut, notes. En version locale,
   suivi par le RSSI seul, avec interrogation ponctuelle des acteurs.
@@ -223,11 +280,11 @@ PowerPoint, en richer :
 - Version hebergee : envoi de mails automatiques avant echeance, lien vers l'action,
   traitement fait / non fait depuis le mail.
 
-## 6. Architecture
+## 7. Architecture
 
 Deux versions construites en parallele, meme contrat de donnees.
 
-### 6.1 Version locale
+### 7.1 Version locale
 
 - Application HTML / JavaScript, execution integrale sur le poste du RSSI, aucune
   dependance reseau.
@@ -236,51 +293,55 @@ Deux versions construites en parallele, meme contrat de donnees.
   transfert vers la version hebergee.
 - Import / export CSV des applications (aller-retour CMDB).
 - Generation du livrable : export du plan de processus en presentation (bibliotheque de
-  generation type PptxGenJS) et en classeur rouge imprimable (PDF).
+  generation type PptxGenJS) avec les deux gabarits executif et complet, et en classeur
+  rouge imprimable (PDF).
 - Relances : notifications locales uniquement.
 
-### 6.2 Version hebergee
+### 7.2 Version hebergee
 
 - Back-end Django (maturite securitaire : CSRF, auth, permissions, audit) avec API REST.
 - Modele de donnees : miroir du schema JSON ; l'import / export JSON sert de pont avec la
   version locale.
 - Authentification et roles :
   - rssi : administration complete, tous perimetres ;
-  - board : lecture seule des PCA de son entite ;
+  - board : lecture seule des PCA de son entite, vue executive uniquement ;
   - directeur : lecture et ecriture des processus de sa direction ;
   - referent : edition des processus dont il est referent.
 - Relances mail automatiques planifiees (taches periodiques type Celery) sur les actions
   et revalidations.
 - Journalisation des acces et modifications.
 
-### 6.3 Compatibilite locale / hebergee
+### 7.3 Compatibilite locale / hebergee
 
 Le schema JSON versionne est le contrat. Toute evolution se fait dans le schema d'abord,
 puis dans les deux versions. Les versions de donnees importees plus anciennes sont migrees
 vers la version courante a l'import (regles de migration versionnees).
 
-## 7. Livrables generes
+## 8. Livrables generes
 
 - Presentation de direction generale par processus (structure actuelle du PowerPoint :
   cartographie, evaluation du besoin de continuite, logiciels, plan, elements globaux,
-  communication interne et externe), declinable par scenario.
+  communication interne et externe), declinable par scenario, en deux gabarits : executif
+  (synthese par processus, une a deux diapositives) et complet (fiche referent).
 - Classeur rouge : document consolide de la direction regroupant procedures, actions
   recurrentes, fichiers a exporter, inventaire des PC hors domaine, mots de passe.
 - Vue de synthese board : avancement par direction, processus prioritaires, echeances.
 
-## 8. Roadmap proposee
+## 9. Roadmap proposee
 
 MVP version locale :
 
-1. Modele de donnees + import / export JSON.
-2. Entites, directions, SI, cartographie macro et micro.
-3. Applications, import CSV, alias, disponibilite.
-4. Qualification processus (dependances, priorite, note calculee).
-5. Scenario ransomware SI de gestion + derivation des applications impactees.
-6. Fiche plan de continuite complete (activites, procedures, actions recurrentes,
-   exports, mots de passe, PC hors domaine, communication).
-7. Reporting avancement par direction.
-8. Generation du livrable presentation.
+1. Maquettes UX des parcours de saisie (assistant par etape) et de la vue executive,
+   validees avant implementation.
+2. Modele de donnees + import / export JSON.
+3. Entites, directions, SI, cartographie macro et micro.
+4. Applications, import CSV, alias, disponibilite.
+5. Qualification processus (dependances, priorite, note calculee), questionnaire atelier.
+6. Scenario ransomware SI de gestion + derivation des applications impactees.
+7. Fiche plan de continuite complete (activites, procedures, actions recurrentes,
+   exports, mots de passe, PC hors domaine, communication), ecran par ecran.
+8. Reporting avancement par direction + vue executive direction generale.
+9. Generation du livrable presentation, gabarits executif et complet.
 
 MVP version hebergee :
 
@@ -288,11 +349,12 @@ MVP version hebergee :
 2. Authentification et roles (rssi, board, directeur, referent).
 3. Edition des processus par les directions et referents.
 4. Relances mail.
+5. Vue executive board.
 
 Ensuite : autres scenarios du catalogue, generation classeur rouge, revalidations
 automatiques, export GRC.
 
-## 9. Points ouverts
+## 10. Points ouverts
 
 1. Formule de la note de processus : la proposition dependance x urgence (1-16, seuil 12)
    doit etre validee ou remplacee (matrice ?).
@@ -302,3 +364,5 @@ automatiques, export GRC.
 4. Regles de reconciliation CMDB : colonnes exactes du CSV, identifiant technique.
 5. Perimetre de la version hebergee sur le SI : hebergement interne ou cloud de
    collectivite, conditions de son ouverture aux directions.
+6. Contenu exact du gabarit executif : nombre de diapositives, niveau de detail des
+   activites, a valider sur un cas reel avant generalisation.
