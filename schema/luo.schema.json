@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/sklaxs/luo/schema/luo.schema.json",
   "title": "Luo - Plan de continuite d'activite informatique metier",
-  "description": "Schema de donnees commun aux versions locale (HTML/JS) et hebergee (Django) de Luo. Contrat unique de la source de verite.",
+  "description": "Schema de donnees commun aux versions locale (HTML/JS) et hebergee (Django) de Luo. Contrat unique de la source de verite. v0.2 : entite sites (localisation geographique), typologie ISO 9001, s'appuie_sur entre processus, notes par scenario, hebergement multi-sites actif/passif, avancement calcule a la volee.",
   "type": "object",
   "required": ["version_schema", "organisation", "entites", "systemes_information"],
   "properties": {
@@ -27,6 +27,11 @@
     "systemes_information": {
       "type": "array",
       "items": { "$ref": "#/$defs/systeme_information" }
+    },
+    "sites": {
+      "type": "array",
+      "description": "Sites physiques (data centers, sites metier) : localisation geographique de l'hebergement, references par id par les SI, les applications et les scenarios.",
+      "items": { "$ref": "#/$defs/site" }
     },
     "directions": {
       "type": "array",
@@ -89,6 +94,17 @@
         "jours_mois": { "type": "array", "items": { "type": "integer", "minimum": 1, "maximum": 31 }, "description": "Ex : [25, 26] pour l'édition des paies." }
       }
     },
+    "site": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "nom"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "nom": { "type": "string", "description": "Ex : DC Paris, Usine nord." },
+        "localisation": { "type": "string", "description": "Ville, pays. Ex : Paris, France. Sert la souveraineté (SaaS multi-pays) et les scenarios localises (incendie d'un DC)." },
+        "type": { "type": "string", "enum": ["data_center", "site_metier", "autre"] }
+      }
+    },
     "entite": {
       "type": "object",
       "additionalProperties": false,
@@ -114,8 +130,8 @@
         "description": { "type": "string" },
         "sites_hebergement": {
           "type": "array",
-          "items": { "type": "string" },
-          "description": "Data centers ou sites internes hebergeant le SI. Sert a affiner les scenarios localises (incendie d'un site)."
+          "items": { "$ref": "#/$defs/id" },
+          "description": "Ids des sites (defs site) hebergeant le SI. Sert a affiner les scenarios localises (incendie d'un data center)."
         }
       }
     },
@@ -172,7 +188,19 @@
               "type": "string",
               "enum": ["interne", "saas", "cloud_public", "prestataire", "poste_travail", "inconnu"]
             },
-            "localisation": { "type": "string" },
+            "sites": {
+              "type": "array",
+              "description": "Sites physiques d'hebergement avec role actif/passif : resilience SaaS multi-DC (migration si defaillance d'un data center, ex. incendie).",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["site_id"],
+                "properties": {
+                  "site_id": { "$ref": "#/$defs/id" },
+                  "role": { "type": "string", "enum": ["actif", "passif", "secours"], "default": "actif" }
+                }
+              }
+            },
             "accessibilite": {
               "type": "string",
               "enum": ["reseau_interne", "internet", "les_deux"],
@@ -253,6 +281,15 @@
           "minimum": 1,
           "maximum": 4,
           "description": "Orientation : ou commencer la demarche PCA sur la cartographie macro."
+        },
+        "typologie": {
+          "type": "string",
+          "enum": ["pilotage", "realisation", "support", "autre"],
+          "description": "Typologie ISO 9001 : pilotage, realisation (valeur pour l'usager), support. S'applique aussi aux processus macro transverses de support/pilotage (ex : gestion RH operee par la DRH)."
+        },
+        "direction_operante_id": {
+          "$ref": "#/$defs/id",
+          "description": "Pour les processus macro transverses de support/pilotage : direction qui opere ce processus (ex : DRH pour la gestion des ressources humaines)."
         }
       }
     },
@@ -267,6 +304,16 @@
         "macro_id": { "$ref": "#/$defs/id" },
         "direction_id": { "$ref": "#/$defs/id" },
         "priorite_service": { "$ref": "#/$defs/priorite_service" },
+        "typologie": {
+          "type": "string",
+          "enum": ["pilotage", "realisation", "support", "autre"],
+          "description": "Typologie ISO 9001. Chaque direction a aussi ses processus locaux de pilotage et de support. Si absent, herite de la typologie du processus macro."
+        },
+        "s'appuie_sur": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/id" },
+          "description": "Ids de processus_micro d'autres directions sur lesquels ce processus s'appuie (ex : declaration des absences via le processus RH de la DRH, eventuellement avec un processus intermediaire local type tableur)."
+        },
         "referent_interne": {
           "type": "object",
           "additionalProperties": false,
@@ -311,15 +358,20 @@
             }
           }
         },
-        "note_processus": {
-          "type": "object",
-          "additionalProperties": false,
-          "description": "Champ calcule, non saisi : voir la formule dans la spec.",
-          "properties": {
-            "dependance_tic": { "$ref": "#/$defs/niveau_dependance", "description": "Calcule depuis dependances_applications." },
-            "valeur": { "type": "integer", "minimum": 1, "maximum": 16 },
-            "scenario_id": { "$ref": "#/$defs/id" },
-            "date_calcul": { "type": "string", "format": "date" }
+        "notes_par_scenario": {
+          "type": "array",
+          "description": "Une note par scenario. Champs calcules, non saisis : valeur = dependance_tic x urgence (1-16, seuil >= 12 = prioritaire ; preselection des processus a traiter a >= 9 via la matrice 4x4, forcage manuel possible en dessous). Proposition modifiable en atelier.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["scenario_id"],
+            "properties": {
+              "scenario_id": { "$ref": "#/$defs/id" },
+              "dependance_tic": { "$ref": "#/$defs/niveau_dependance", "description": "Niveau max des dependances aux applications impactees par le scenario. Calcule." },
+              "valeur": { "type": "integer", "minimum": 1, "maximum": 16, "description": "dependance_tic x urgence. Calcule." },
+              "date_calcul": { "type": "string", "format": "date" },
+              "modifie_manuellement": { "type": "boolean", "default": false, "description": "True si la note affichee a ete modifiee manuellement en atelier." }
+            }
           }
         }
       }
@@ -342,7 +394,7 @@
           "description": "Hypotheses de cadrage : messagerie indisponible, reseaux internes coupes, acces Internet maintenu ou non, etc."
         },
         "si_impactes": { "type": "array", "items": { "$ref": "#/$defs/id" } },
-        "sites_impactes": { "type": "array", "items": { "type": "string" } },
+        "sites_impactes": { "type": "array", "items": { "$ref": "#/$defs/id" }, "description": "Ids des sites (defs site) impactes par le scenario (ex : incendie d'un data center)." },
         "entites_impactees": { "type": "array", "items": { "$ref": "#/$defs/id" } },
         "duree_indisponibilite_estimee": {
           "type": "object",
@@ -398,7 +450,6 @@
             }
           }
         },
-        "avancement": { "type": "integer", "minimum": 0, "maximum": 100, "description": "Champ calcule depuis etapes." },
         "validation": {
           "type": "object",
           "additionalProperties": false,
