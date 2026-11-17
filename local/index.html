@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Luo — Plans de continuité d'activité</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-logo">L</div>
+      <div>
+        <h1>Luo</h1>
+        <p class="brand-sub">Plans de continuité d'activité — version locale (100 % local, aucune donnée ne sort du poste)</p>
+      </div>
+    </div>
+    <nav class="tabs" id="tabs">
+      <button class="tab active" data-tab="dashboard">Tableau de bord</button>
+      <button class="tab" data-tab="selection">Sélection</button>
+      <button class="tab" data-tab="cartographie">Cartographie</button>
+      <button class="tab" data-tab="applications">Applications</button>
+      <button class="tab" data-tab="scenarios">Scénarios</button>
+      <button class="tab" data-tab="plans">Plans</button>
+      <button class="tab" data-tab="actions">Actions</button>
+      <button class="tab" data-tab="donnees">Données</button>
+    </nav>
+  </header>
+  <main id="main"><!-- rendu par app.js --></main>
+</div>
+<div id="print-root"></div>
+<div id="modal-root"></div>
+<script src="exemple-donnees.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
