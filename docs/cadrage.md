@@ -1,6 +1,6 @@
 # Luo - Cadrage du developpement
 
-Version 0.2 - 15/11/2026
+Version 0.3 - 15/11/2026
 
 ## 1. Contexte
 
@@ -110,32 +110,57 @@ synthese sans se confronter au detail.
   classeur rouge). Le gabarit executif est derive du complet, pas redige separement.
 - Role board de la version hebergee : acces a la vue executive uniquement.
 
+### 4.4 Selectionner les processus a traiter
+
+- Ecran de selection dedie : matrice 4x4 a gauche (dependance_tic x urgence, chaque case
+  regroupe les processus dont la note tombe dedans), et a droite la cartographie des
+  processus avec entourage rouge sur les processus selectionnes (traites) et non selectionnes.
+- Preselection automatique : processus de note >= 9 selectionnes par defaut ; un processus
+  a note < 9 (ex : 8) se force manuellement en cliquant sa case dans la matrice ou son
+  processus dans la cartographie.
+- La selection porte sur les processus micro (par direction) ; elle pilote quels plans de
+  continuite sont construits en priorite.
+
 ## 5. Schema de donnees
 
-Reference : schema/luo.schema.json (JSON Schema 2020-12). Un fichier de donnees Luo est un
+Reference : schema/luo.schema.json (JSON Schema 2020-12, v0.2). Un fichier de donnees Luo est un
 document JSON conforme a ce schema, utilisable tel quel en import/export par la version
 locale, et servi par l'API de la version hebergee.
 
 Objets et relations :
 
+- site : data center ou site metier, avec localisation geographique (ville, pays) et type.
+  Reference par id par les SI (sites_hebergement), les applications (hebergement.sites) et
+  les scenarios (sites_impactes). Sert la souveraineté (SaaS multi-pays) et les scenarios
+  localises (incendie d'un data center).
 - entite : 7 entites, extensible.
 - systeme_information : gestion, geographique, industriel, batimentaire, autre.
+  sites_hebergement : ids de sites.
 - direction : rattachee a une entite.
-- application : nom officiel unique + alias par entite, hebergement (interne, SaaS, cloud,
-  prestataire, poste), contrat, SI operants (plusieurs possibles), criticite 1-4,
+- application : nom officiel unique + alias par entite, hebergement (mode interne/SaaS/cloud/
+  prestataire/poste + sites physiques avec role actif/passif pour la resilience multi-DC,
+  ex. migration si defaillance ou incendie d'un data center), contrat, SI operants
+  (plusieurs possibles), criticite 1-4,
   disponibilite habituelle et periodes critiques, disponibilite attendue sans SI interne,
   reference CMDB. Les applications decommisionnees restent presentes avec actif = false.
 - processus_macro : cartographie globale, validee direction generale, avec niveau de
-  sensibilite pour orienter les priorites de construction.
-- processus_micro : rattache a une direction et a un processus macro. Contient la priorite
-  de service (imperatif, 3 jours, 1 semaine, 1 mois, 1 trimestre), le referent interne avec
-  date de validation et prochaine revalidation annuelle, les points de contact usager
-  (physique, telephone, portable, mail, accueil, avec localisation), les dependances
-  application par application (niveau, justification, periodes de renforcement), et la note
-  de processus calculee.
+  sensibilite pour orienter les priorites de construction, typologie ISO 9001 (pilotage,
+  realisation, support, autre) et, pour les processus transverses de support/pilotage,
+  direction_operante_id (ex : gestion RH operee par la DRH).
+- processus_micro : rattache a une direction et a un processus macro. Typologie ISO 9001
+  propre (chaque direction a aussi ses processus locaux de pilotage et de support ; sinon
+  herite du macro). Champ s'appuie_sur : ids de processus_micro d'autres directions sur
+  lesquels le processus s'appuie (ex : declaration des absences via le processus RH de la
+  DRH, eventuellement avec un processus intermediaire local type tableur). Contient la
+  priorite de service (imperatif, 3 jours, 1 semaine, 1 mois, 1 trimestre), le referent
+  interne avec date de validation et prochaine revalidation annuelle, les points de contact
+  usager (physique, telephone, portable, mail, accueil, avec localisation), les dependances
+  application par application (niveau, justification, periodes de renforcement), et les
+  notes calculees par scenario (notes_par_scenario).
 - scenario : format libre. Nom, type, description, postulats (messagerie indisponible, acces
-  Internet maintenu ou non, etc.), SI impactes, sites et entites impactes, duree estimee,
-  mesures SI attendues avec prerequis metier.
+  Internet maintenu ou non, etc.), SI impactes, sites impactes (ids de sites, ex. incendie
+  d'un data center) et entites impactees, duree estimee, mesures SI attendues avec
+  prerequis metier.
 - plan_continuite : couple (processus, scenario). Statut, etapes de construction
   (cartographie, identification des applications, qualification, atelier referent, activites,
   procedures et actions, revue DG, validation), avancement calcule, activites en 4 modes,
@@ -145,19 +170,22 @@ Objets et relations :
   date cible, statut, recurrence avec relances.
 - utilisateur : version hebergee uniquement.
 
-Regle de calcul proposee pour la note de processus (a retravailler ensemble, conforme a ce
-qui a ete evoque) :
+Regle de calcul retenue pour la note de processus (v0.3) :
 
 - dependance_tic du processus = niveau maximal de dependance des applications impactees
   par le scenario ;
 - urgence derivee de la priorite de service : imperatif = 4, 3 jours = 3, 1 semaine = 2,
   1 mois ou 1 trimestre = 1 ;
-- note = dependance_tic x urgence, de 1 a 16 ;
-- seuil propose : note superieure ou egale a 12 = processus prioritaire dans le PCA du
-  scenario considere.
+- note = dependance_tic x urgence, de 1 a 16, calculee et stockee par scenario
+  (notes_par_scenario, une entree par scenario) ;
+- seuil retenu : note >= 12 = processus prioritaire dans le PCA du scenario considere ;
+- preselection des processus a traiter : note >= 9, visualisee via la matrice 4x4
+  dependance x urgence (voir 4.4) ; un processus a note < 9 peut etre force manuellement.
 
-L'outil doit afficher cette note comme proposition modifiable, pour garder la main sur la
-qualification finale en atelier.
+L'outil doit afficher cette note comme proposition modifiable (modifie_manuellement), pour
+garder la main sur la qualification finale en atelier. La priorite de service reste
+librement ajustable lors de l'echange avec le referent interne (pas de validation formelle
+tracee dans le modele de donnees).
 
 Regle de derivation des applications impactees par scenario : une application est impactee
 si au moins un SI operant est liste dans si_impactes, ou si son hebergement est localise sur
@@ -169,19 +197,31 @@ de mots de passe). C'est le role des postulats du scenario de trancher ces cas l
 
 ### 6.1 Entites et cartographie
 
-- Saisie des entites, directions, referents de direction.
+- Saisie des entites, directions, referents de direction, et des sites (data centers, sites
+  metier) avec localisation geographique.
 - Cartographie macro : visualisation de l'ensemble des processus macro, validation DG,
   niveau de sensibilite pour orienter ou commencer.
+- Typologie ISO 9001 retenue : pilotage / realisation / support (+ autre), champ typologie
+  sur processus macro et micro. La cartographie macro comporte aussi les processus
+  transverses de support/pilotage (ex : gestion RH), avec direction_operante_id.
+- Chaque direction fait apparaitre dans sa cartographie ses propres processus de pilotage
+  (ex : definition des orientations strategiques de la direction) et de support (fournisseurs,
+  budget/comptabilite, RH locaux).
+- Un processus ressource local peut s'appuyer sur le processus opere par la direction dont
+  c'est le metier (champ s'appuie_sur, ex : declaration des absences via le processus RH de la
+  DRH), eventuellement avec un processus intermediaire local (tableur) pour les grosses
+  directions.
 - Navigation proposee : processus macro -> directions qui l'operent (toutes entités) ->
-  processus micro de chaque direction. La gymnastique macro / micro s'appuiera sur les
-  pratiques usuelles de cartographie des processus (typologie ISO 9001 : processus de
-  pilotage, de realisation, de support) ; a documenter avant implementation.
+  processus micro de chaque direction.
 
 ### 6.2 Applications
 
-- Import CSV depuis la CMDB : colonnes id externe, nom officiel, editeur, hebergement,
-  SI operants, criticite. Reimport regulier : reconciliation par id externe, ajout des
-  nouvelles applications, passage en actif = false des absentes, jamais de suppression.
+- Import CSV depuis la CMDB (format retenu v0.3) : separateur `;`, UTF-8, colonnes :
+  id_externe;nom_officiel;editeur;categorie;hebergement_mode;localisation;accessibilite;
+  si_operants;criticite_niveau;criticite_justification
+  (si_operants separes par `|` ; localisation = nom du site, resolu en id dans sites).
+  Reimport regulier (ex : mensuel) : reconciliation par id_externe, ajout des nouvelles
+  applications, passage en actif = false des absentes, jamais de suppression.
 - Export CSV vers la CMDB ou l'outil GRC : nom, criticite, dependances processus, note.
 - Gestion des alias : le nom officiel fait foi, l'alias entite sert a la saisie et a la
   recherche. Une recherche doit trouver l'application quel que soit le nom local utilise.
@@ -286,8 +326,11 @@ Deux versions construites en parallele, meme contrat de donnees.
 
 ### 7.1 Version locale
 
-- Application HTML / JavaScript, execution integrale sur le poste du RSSI, aucune
-  dependance reseau.
+- Application HTML / CSS / JavaScript vanilla, execution integrale sur le poste du RSSI,
+  aucune dependance reseau (meme stack 100 % locale que Paul).
+- Charte graphique : reprise de celle de Paul, documentee dans docs/charte-graphique.md
+  (tokens : fond #f4f6fb, surface #ffffff, ink #17203a, accent #4f46e5 indigo, radius 14px,
+  badges pill, topbar sticky avec onglets, deck 16:9 pour les livrables).
 - Stockage : IndexedDB (ou localStorage selon volume), persistant entre sessions.
 - Import / export JSON complet (fichier conforme au schema) : sauvegarde, restauration,
   transfert vers la version hebergee.
@@ -322,7 +365,9 @@ vers la version courante a l'import (regles de migration versionnees).
 - Presentation de direction generale par processus (structure actuelle du PowerPoint :
   cartographie, evaluation du besoin de continuite, logiciels, plan, elements globaux,
   communication interne et externe), declinable par scenario, en deux gabarits : executif
-  (synthese par processus, une a deux diapositives) et complet (fiche referent).
+  (1-2 slides 16:9 par processus : synthese note/priorite/activites/avancement) et complet
+  (fiche referent). Les slides 16:9 s'appuient sur le deck de Paul (export PDF
+  13,333in x 7,5in), a valider sur un cas reel avant generalisation.
 - Classeur rouge : document consolide de la direction regroupant procedures, actions
   recurrentes, fichiers a exporter, inventaire des PC hors domaine, mots de passe.
 - Vue de synthese board : avancement par direction, processus prioritaires, echeances.
@@ -356,13 +401,18 @@ automatiques, export GRC.
 
 ## 10. Points ouverts
 
-1. Formule de la note de processus : la proposition dependance x urgence (1-16, seuil 12)
-   doit etre validee ou remplacee (matrice ?).
-2. Typologie macro / micro : s'appuyer sur une reference type ISO 9001 a trancher.
-3. Granularite des plans : un plan par couple processus / scenario, ou un plan par
-   processus declinable en sections par scenario ? Le schema retient le couple.
-4. Regles de reconciliation CMDB : colonnes exactes du CSV, identifiant technique.
+1. ~~Formule de la note~~ RESOLU v0.3 : produit dependance_tic x urgence (1-16), seuil >= 12
+   prioritaire ; preselection a traiter >= 9 via la matrice 4x4, forcage manuel possible ;
+   note stockee par scenario (notes_par_scenario), modifiable en atelier.
+2. ~~Typologie macro / micro~~ RESOLU v0.3 : ISO 9001 (pilotage/realisation/support/autre) sur
+   macro et micro ; processus macro transverses de support/pilotage avec
+   direction_operante_id ; s'appuie_sur entre processus micro (processus ressources operees
+   par une autre direction, ex. DRH).
+3. ~~Granularite des plans~~ RESOLU v0.3 : un plan par couple (processus_micro, scenario).
+4. ~~Regles de reconciliation CMDB~~ RESOLU v0.3 : CSV `;` UTF-8, colonnes fixees (voir 6.2),
+   reconciliation sur id_externe, absentes -> actif = false, jamais de suppression.
 5. Perimetre de la version hebergee sur le SI : hebergement interne ou cloud de
-   collectivite, conditions de son ouverture aux directions.
-6. Contenu exact du gabarit executif : nombre de diapositives, niveau de detail des
-   activites, a valider sur un cas reel avant generalisation.
+   collectivite, conditions de son ouverture aux directions. A trancher avec la DSI ;
+   sans impact sur le contrat de donnees.
+6. ~~Contenu exact du gabarit executif~~ RESOLU v0.3 : 1-2 slides 16:9 par processus sur la
+   base du deck Paul (PDF 13,333in x 7,5in) ; a valider sur un cas reel avant generalisation.

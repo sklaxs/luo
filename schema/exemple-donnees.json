@@ -1,32 +1,38 @@
 {
-  "version_schema": "0.1.0",
+  "version_schema": "0.2.0",
   "organisation": {
     "nom": "Organisation exemple",
     "reference_pca": "Classeur rouge"
   },
   "entites": [
-    { "id": "ent-a", "nom": "Entite A", "code": "A", "active": true },
-    { "id": "ent-b", "nom": "Entite B", "code": "B", "active": true }
+    { "id": "ent-agglomeration", "nom": "Agglomération", "code": "AGGLO", "active": true },
+    { "id": "ent-ville-centre", "nom": "Ville centre", "code": "VC", "active": true }
   ],
   "systemes_information": [
-    { "id": "si-gestion", "nom": "SI de gestion", "type": "gestion", "sites_hebergement": ["DC principal"] },
-    { "id": "si-indus", "nom": "SI industriel", "type": "industriel", "sites_hebergement": ["Usine nord"] }
+    { "id": "si-gestion", "nom": "SI de gestion", "type": "gestion", "sites_hebergement": ["dc-paris", "dc-lyon"] },
+    { "id": "si-indus", "nom": "SI industriel", "type": "industriel", "sites_hebergement": ["site-usine-nord"] }
+  ],
+  "sites": [
+    { "id": "dc-paris", "nom": "DC Paris", "localisation": "Paris, France", "type": "data_center" },
+    { "id": "dc-lyon", "nom": "DC Lyon", "localisation": "Lyon, France", "type": "data_center" },
+    { "id": "site-usine-nord", "nom": "Usine nord", "localisation": "Nord, France", "type": "site_metier" }
   ],
   "directions": [
-    { "id": "dir-rh-a", "nom": "Direction RH - Entite A", "entite_id": "ent-a", "directeur": { "nom": "Durand", "fonction": "Directrice RH" } },
-    { "id": "dir-eau-b", "nom": "Direction eau et assainissement - Entite B", "entite_id": "ent-b", "directeur": { "nom": "Le Goff", "fonction": "Directeur" } }
+    { "id": "dir-rh-a", "nom": "Direction RH - Agglomération", "entite_id": "ent-agglomeration", "directeur": { "nom": "Durand", "fonction": "Directrice RH" } },
+    { "id": "dir-eau-b", "nom": "Direction eau et assainissement - Ville centre", "entite_id": "ent-ville-centre", "directeur": { "nom": "Le Goff", "fonction": "Directeur" } },
+    { "id": "dir-jur-a", "nom": "Direction affaires generales et juridiques - Agglomération", "entite_id": "ent-agglomeration", "directeur": { "nom": "Roche", "fonction": "Directrice" } }
   ],
   "applications": [
     {
       "id": "app-paie",
       "nom_officiel": "Silae Paie",
       "alias": [
-        { "entite_id": "ent-a", "nom_local": "Portail paie A" },
-        { "entite_id": "ent-b", "nom_local": "Mon espace paie" }
+        { "entite_id": "ent-agglomeration", "nom_local": "Portail paie Agglo" },
+        { "entite_id": "ent-ville-centre", "nom_local": "Espace paie Ville centre" }
       ],
       "editeur": "Silae",
       "categorie": "metier",
-      "hebergement": { "mode": "saas", "accessibilite": "internet" },
+      "hebergement": { "mode": "saas", "accessibilite": "internet", "sites": [ { "site_id": "dc-paris", "role": "actif" }, { "site_id": "dc-lyon", "role": "passif" } ] },
       "si_operants": ["si-gestion"],
       "criticite": { "niveau": 4, "justification": "Production mensuelle des bulletins et virements." },
       "disponibilite": {
@@ -46,7 +52,7 @@
       "alias": [],
       "editeur": "Editeur supervision",
       "categorie": "supervision industrielle",
-      "hebergement": { "mode": "interne", "localisation": "Usine nord", "accessibilite": "reseau_interne" },
+      "hebergement": { "mode": "interne", "accessibilite": "reseau_interne", "sites": [ { "site_id": "site-usine-nord", "role": "actif" } ] },
       "si_operants": ["si-indus"],
       "criticite": { "niveau": 4, "justification": "Conduite de la production d'eau potable." },
       "disponible_sans_si_interne": { "valeur": false, "justification": "Hebergee sur le SI industriel impacte." },
@@ -59,14 +65,25 @@
       "nom": "Gestion de la paie",
       "description": "Production des elements variables, calcul, validation et virement des paies.",
       "validation": { "date": "2026-10-02", "validateur": "Direction generale" },
-      "niveau_sensibilite": 4
+      "niveau_sensibilite": 4,
+      "typologie": "support"
     },
     {
       "id": "mac-eau",
       "nom": "Production et distribution d'eau potable",
       "description": "Pompage, traitement, distribution, controle qualite.",
       "validation": { "date": "2026-10-02", "validateur": "Direction generale" },
-      "niveau_sensibilite": 4
+      "niveau_sensibilite": 4,
+      "typologie": "realisation"
+    },
+    {
+      "id": "mac-rh",
+      "nom": "Gestion des ressources humaines",
+      "description": "Processus macro transverse de support, opere par la DRH ; les directions metier s'y appuient via leurs processus locaux (s'appuie_sur).",
+      "validation": { "date": "2026-10-02", "validateur": "Direction generale" },
+      "niveau_sensibilite": 2,
+      "typologie": "support",
+      "direction_operante_id": "dir-rh-a"
     }
   ],
   "processus_micro": [
@@ -76,6 +93,7 @@
       "macro_id": "mac-paie",
       "direction_id": "dir-rh-a",
       "priorite_service": "imperatif",
+      "typologie": "support",
       "referent_interne": {
         "personne": { "nom": "Martin", "fonction": "Responsable paie", "email": "martin@exemple.fr" },
         "date_validation": "2026-11-10",
@@ -95,12 +113,9 @@
           ]
         }
       ],
-      "note_processus": {
-        "dependance_tic": 4,
-        "valeur": 16,
-        "scenario_id": "sce-rw-gestion",
-        "date_calcul": "2026-11-15"
-      }
+      "notes_par_scenario": [
+        { "scenario_id": "sce-rw-gestion", "dependance_tic": 4, "valeur": 16, "date_calcul": "2026-11-15", "modifie_manuellement": false }
+      ]
     },
     {
       "id": "mic-eau-b",
@@ -108,6 +123,7 @@
       "macro_id": "mac-eau",
       "direction_id": "dir-eau-b",
       "priorite_service": "imperatif",
+      "typologie": "realisation",
       "referent_interne": {
         "personne": { "nom": "Peron", "fonction": "Chef de centre", "telephone": "06 00 00 00 00" },
         "date_validation": "2026-11-12",
@@ -119,6 +135,24 @@
       "dependances_applications": [
         { "application_id": "app-scada", "niveau": 4, "justification": "Supervision et conduite des organes de production." }
       ]
+    },
+    {
+      "id": "mic-rh-a",
+      "nom": "Gestion des absences et conges",
+      "macro_id": "mac-rh",
+      "direction_id": "dir-rh-a",
+      "priorite_service": "1_semaine",
+      "typologie": "support",
+      "dependances_applications": []
+    },
+    {
+      "id": "mic-absences-jur",
+      "nom": "Declaration des absences - direction juridique",
+      "direction_id": "dir-jur-a",
+      "priorite_service": "3_jours",
+      "typologie": "support",
+      "s'appuie_sur": ["mic-rh-a"],
+      "dependances_applications": []
     }
   ],
   "scenarios": [
@@ -134,7 +168,8 @@
         "SI industriel, geographique et batimentaire non impactes"
       ],
       "si_impactes": ["si-gestion"],
-      "entites_impactees": ["ent-a", "ent-b"],
+      "sites_impactes": ["dc-paris", "dc-lyon"],
+      "entites_impactees": ["ent-agglomeration", "ent-ville-centre"],
       "duree_indisponibilite_estimee": { "min_jours": 3, "max_jours": 21 },
       "mesures_si_attendues": [
         {
@@ -159,7 +194,8 @@
         "Supervision indisponible jusqu'a remediation"
       ],
       "si_impactes": ["si-indus"],
-      "entites_impactees": ["ent-b"],
+      "sites_impactes": ["site-usine-nord"],
+      "entites_impactees": ["ent-ville-centre"],
       "duree_indisponibilite_estimee": { "min_jours": 2, "max_jours": 14 },
       "mesures_si_attendues": [
         {
@@ -190,7 +226,6 @@
         { "nom": "revue_dg", "statut": "a_faire" },
         { "nom": "validation", "statut": "a_faire" }
       ],
-      "avancement": 63,
       "activites": [
         {
           "nom": "Collecte des elements variables",
@@ -303,7 +338,7 @@
   ],
   "utilisateurs": [
     { "id": "usr-rssi", "nom": "Anthony GUILLERM", "email": "anthony.guillerm@exemple.fr", "role": "rssi" },
-    { "id": "usr-board-b", "nom": "Membre du board entite B", "email": "board-b@exemple.fr", "role": "board", "entites_autorisees": ["ent-b"] },
+    { "id": "usr-board-vc", "nom": "Membre du board Ville centre", "email": "board-vc@exemple.fr", "role": "board", "entites_autorisees": ["ent-ville-centre"] },
     { "id": "usr-dir-eau", "nom": "Le Goff", "email": "legoff@exemple.fr", "role": "directeur", "directions_autorisees": ["dir-eau-b"] }
   ]
 }
