@@ -403,7 +403,7 @@ function renderCartoListe() {
     d.systemes_information.forEach(function (s) {
       var sites = (s.sites_hebergement || []).map(function (sid) { var st = LuoCalc.byId(d, 'sites', sid); return st ? st.nom : sid; }).join(', ');
       html += '<tr><td>' + esc(s.id) + '</td><td>' + esc(s.nom) + '</td><td>' + esc(s.type || '—') + '</td><td>' + esc(sites || '—') + '</td>' +
-        '<td><button class="btn small danger" onclick="LuoUI.del(\'systemes_information\',\'' + esc(s.id) + '\')">Suppr.</button></td></tr>';
+        '<td><button class="btn small" onclick="LuoUI.editSimple(\'systemes_information\',\'' + esc(s.id) + '\')">✎</button> <button class="btn small danger" onclick="LuoUI.del(\'systemes_information\',\'' + esc(s.id) + '\')">Suppr.</button></td></tr>';
     });
     html += '</tbody></table>';
   }
@@ -418,7 +418,7 @@ function renderCartoListe() {
     d.processus_macro.forEach(function (m) {
       var dop = m.direction_operante_id ? LuoCalc.byId(d, 'directions', m.direction_operante_id) : null;
       html += '<tr><td>' + esc(m.id) + '</td><td>' + esc(m.nom) + '</td><td><span class="chip">' + esc(m.typologie || '—') + '</span></td><td>' + (m.niveau_sensibilite || '—') + '</td><td>' + esc(dop ? dop.nom : '—') + '</td>' +
-        '<td><button class="btn small danger" onclick="LuoUI.del(\'processus_macro\',\'' + esc(m.id) + '\')">Suppr.</button></td></tr>';
+        '<td><button class="btn small" onclick="LuoUI.editSimple(\'processus_macro\',\'' + esc(m.id) + '\')">✎</button> <button class="btn small danger" onclick="LuoUI.del(\'processus_macro\',\'' + esc(m.id) + '\')">Suppr.</button></td></tr>';
     });
     html += '</tbody></table>';
   }
@@ -445,7 +445,8 @@ function tableSimple(list, cols, label, delFn) {
   var html = '<table class="data"><thead><tr>' + cols.map(function (c) { return '<th>' + esc(c) + '</th>'; }).join('') + '<th></th></tr></thead><tbody>';
   list.forEach(function (it) {
     html += '<tr>' + cols.map(function (c) { return '<td>' + esc(it[c] == null ? '—' : it[c]) + '</td>'; }).join('') +
-      '<td><button class="btn small danger" onclick="' + delFn + '(\'' + label + 's\',\'' + esc(it.id) + '\')">Suppr.</button></td></tr>';
+      '<td><button class="btn small" title="Renommer / éditer" onclick="LuoUI.editSimple(\'' + label + 's\',\'' + esc(it.id) + '\')">✎</button> ' +
+      '<button class="btn small danger" onclick="' + delFn + '(\'' + label + 's\',\'' + esc(it.id) + '\')">Suppr.</button></td></tr>';
   });
   return html + '</tbody></table>';
 }
@@ -783,6 +784,7 @@ function renderDonnees() {
     '<button class="btn" onclick="document.getElementById(\'json-in\').click()">Import JSON</button>' +
     '<input type="file" id="json-in" accept=".json,application/json" style="display:none" onchange="LuoUI.importJSON(this)">' +
     '<button class="btn" onclick="LuoUI.loadExemple()">Charger l\'exemple</button>' +
+    '<button class="btn" onclick="LuoUI.loadModele()">Modèle type : Agglomération + Ville centre</button>' +
     '<button class="btn danger" onclick="LuoUI.reset()">Réinitialiser</button>');
   html += '<div class="card"><div class="section-title">Contenu courant (schéma ' + esc(d.version_schema || '?') + ')</div>' +
     '<table class="data"><tbody>' + stats + '</tbody></table>' +
@@ -1428,6 +1430,211 @@ LuoUI.openMicroDetail = function (id) {
     '<button class="btn" onclick="LuoUI.editMicro(\'' + esc(m.id) + '\')">Éditer</button>' +
     '<button class="btn danger" onclick="LuoUI.del(\'processus_micro\',\'' + esc(m.id) + '\');closeModal()">Supprimer</button>' +
     '<button class="btn" onclick="closeModal()">Fermer</button></div>');
+};
+
+/* ================= 7c. Cartographie aplatie : un seul niveau de tuiles ===
+   (le clic sur un processus ouvre directement son détail ; le niveau macro
+   reste dans le modèle pour la validation DG mais n'est plus une étape de
+   navigation) ============================================================ */
+
+function cartoMicros(d) {
+  var ms = d.processus_micro || [];
+  if (state.entiteId === 'toutes') return ms;
+  var dirsEnt = dirsDeEntite(d, state.entiteId);
+  return ms.filter(function (m) { return dirsEnt.indexOf(m.direction_id) >= 0; });
+}
+function cartoTypologie(d, m) {
+  if (m.typologie) return m.typologie;
+  var mac = m.macro_id ? LuoCalc.byId(d, 'processus_macro', m.macro_id) : null;
+  return (mac && mac.typologie) || 'autre';
+}
+function cartoTransverse(d, m) {
+  var mac = m.macro_id ? LuoCalc.byId(d, 'processus_macro', m.macro_id) : null;
+  return !!(mac && mac.direction_operante_id);
+}
+
+function renderCartographie() {
+  var d = state.data, main = document.getElementById('main');
+  if (state.cartoVue === 'liste') { renderCartoListe(); return; }
+  var entites = d.entites || [];
+  var tabs = '<button class="entite-tab' + (state.entiteId === 'toutes' ? ' active' : '') + '" onclick="LuoUI.setEntite(\'toutes\')">Toutes entités</button>' +
+    entites.map(function (e) {
+      return '<span style="display:inline-flex;gap:3px;align-items:center"><button class="entite-tab' + (state.entiteId === e.id ? ' active' : '') + '" onclick="LuoUI.setEntite(\'' + esc(e.id) + '\')">' + esc(e.nom) + '</button>' +
+        '<button class="btn small" title="Renommer l\'entité" onclick="LuoUI.editSimple(\'entites\',\'' + esc(e.id) + '\')">✎</button></span>';
+    }).join('');
+  var entNom = state.entiteId !== 'toutes' ? ((LuoCalc.byId(d, 'entites', state.entiteId) || {}).nom || '') : '';
+  var html = pageHead('Cartographie des processus' + (entNom ? ' — ' + esc(entNom) : ''),
+    'Vue graphique par entité. Clic sur un processus = détail (priorité, note, dépendances, activités du plan). Entourage rouge = sélectionné « à traiter ». ✎ = renommer l\'entité.',
+    '<span class="entite-tabs">' + tabs + '</span>' +
+    '<button class="btn small" onclick="LuoUI.setCartoVue(\'liste\')">Vue liste</button>' +
+    '<button class="btn" onclick="LuoUI.addSite()">+ Site</button>' +
+    '<button class="btn" onclick="LuoUI.addSI()">+ SI</button>' +
+    '<button class="btn" onclick="LuoUI.addDirection()">+ Direction</button>' +
+    '<button class="btn primary" onclick="LuoUI.addMacro()">+ Macro</button>' +
+    '<button class="btn primary" onclick="LuoUI.addMicro()">+ Processus</button>');
+  var eff = selectionEffective();
+  var micros = cartoMicros(d);
+  html += '<div class="carto-map">' +
+    '<div class="carto-side left">Besoins des directions utilisatrices · Orientations</div>' +
+    '<div class="carto-side right">Valeur produite pour les usagers</div>';
+  if (!micros.length) html += '<div class="empty">Aucun processus pour cette entité — ajoutez-en avec « + Processus », ou chargez le modèle type (onglet Données).</div>';
+  function tileMicro(m) {
+    var dir = LuoCalc.byId(d, 'directions', m.direction_id);
+    var mac = m.macro_id ? LuoCalc.byId(d, 'processus_macro', m.macro_id) : null;
+    var n = state.scenarioId ? LuoCalc.noteAffichee(d, m, state.scenarioId) : null;
+    var typ = cartoTypologie(d, m);
+    return '<div class="carto-tile typ-' + typ + (eff[m.id] ? ' selectionnee' : '') + '" onclick="LuoUI.openMicroDetail(\'' + esc(m.id) + '\')">' +
+      '<span class="code">' + esc(m.id) + (mac ? ' · ' + esc(mac.nom) : '') + '</span>' +
+      '<span class="label">' + esc(m.nom) + '</span>' +
+      '<span class="meta">' + esc(dir ? dir.nom : '—') + ' · ' + esc(m.priorite_service) + ' · ' + notePill(n) + '</span></div>';
+  }
+  TYPO_BANDS.forEach(function (band) {
+    var typ = band[0], label = band[1], color = band[2];
+    var list = micros.filter(function (m) { return cartoTypologie(d, m) === typ; });
+    if (!list.length) return;
+    var transverses = list.filter(function (m) { return cartoTransverse(d, m); });
+    var propres = list.filter(function (m) { return !cartoTransverse(d, m); });
+    html += '<div class="carto-band"><span class="dot" style="background:' + color + '"></span>' + esc(label) + '</div>';
+    if (propres.length) html += '<div class="carto-row">' + propres.map(tileMicro).join('') + '</div>';
+    if (transverses.length) {
+      html += '<div class="carto-dashed"><div class="carto-band"><span class="dot" style="background:' + color + '"></span>' + esc(label) + ' — transverses</div>' +
+        '<div class="carto-row">' + transverses.map(tileMicro).join('') + '</div></div>';
+    }
+  });
+  html += '</div>';
+  html += '<div class="carto-legend"><span><span class="dot" style="background:#7c3aed"></span>pilotage</span><span><span class="dot" style="background:#0891b2"></span>réalisation</span><span><span class="dot" style="background:#d97706"></span>support</span><span><span class="dot" style="background:var(--danger)"></span>sélectionné « à traiter »</span></div>';
+  main.innerHTML = html;
+}
+
+/* ================= 7d. Édition simple (renommer entité, site, SI, ...) === */
+
+var EDIT_FIELDS = {
+  entites: [['nom', 'Nom', 'text'], ['code', 'Code', 'text'], ['active', 'Active', 'checkbox']],
+  sites: [['nom', 'Nom', 'text'], ['localisation', 'Localisation (ville, pays)', 'text'], ['type', 'Type', 'select', ['data_center', 'site_metier', 'autre']]],
+  directions: [['nom', 'Nom', 'text'], ['entite_id', 'Entité', 'entites']],
+  systemes_information: [['nom', 'Nom', 'text'], ['type', 'Type', 'select', ['gestion', 'geographique', 'industriel', 'batimentaire', 'autre']]],
+  processus_macro: [['nom', 'Nom', 'text'], ['typologie', 'Typologie', 'select', ['pilotage', 'realisation', 'support', 'autre']], ['niveau_sensibilite', 'Sensibilité (1-4)', 'number']]
+};
+
+LuoUI.editSimple = function (coll, id) {
+  var d = state.data; var it = LuoCalc.byId(d, coll, id); if (!it) return;
+  var fields = EDIT_FIELDS[coll] || [['nom', 'Nom', 'text']];
+  var body = fields.map(function (f) {
+    var key = f[0], label = f[1], type = f[2], opts = f[3];
+    var val = it[key];
+    if (type === 'checkbox') return '<label class="field" style="flex-direction:row;gap:6px;align-items:center"><input type="checkbox" id="e-' + key + '"' + (val ? ' checked' : '') + '> ' + esc(label) + '</label>';
+    if (type === 'select') return '<label class="field">' + esc(label) + '<select id="e-' + key + '">' + opts.map(function (o) { return '<option' + (val === o ? ' selected' : '') + '>' + o + '</option>'; }).join('') + '</select></label>';
+    if (type === 'entites') return '<label class="field">' + esc(label) + '<select id="e-' + key + '">' + (d.entites || []).map(function (e) { return '<option value="' + esc(e.id) + '"' + (val === e.id ? ' selected' : '') + '>' + esc(e.nom) + '</option>'; }).join('') + '</select></label>';
+    return '<label class="field">' + esc(label) + '<input type="' + (type || 'text') + '" id="e-' + key + '" value="' + esc(val == null ? '' : val) + '"></label>';
+  }).join('');
+  modal('<h3>Modifier — ' + esc(id) + '</h3><div class="form-grid">' + body + '</div>' +
+    '<div class="modal-actions"><button class="btn" onclick="closeModal()">Annuler</button>' +
+    '<button class="btn primary" onclick="LuoUI.saveSimpleEdit(\'' + coll + '\',\'' + esc(id) + '\')">Enregistrer</button></div>');
+};
+LuoUI.saveSimpleEdit = function (coll, id) {
+  var d = state.data; var it = LuoCalc.byId(d, coll, id); if (!it) return;
+  (EDIT_FIELDS[coll] || [['nom', 'Nom', 'text']]).forEach(function (f) {
+    var key = f[0], type = f[2];
+    var el = document.getElementById('e-' + key);
+    if (!el) return;
+    if (type === 'checkbox') it[key] = el.checked;
+    else if (type === 'number') { var v = parseInt(el.value, 10); if (v) it[key] = v; else delete it[key]; }
+    else it[key] = el.value || undefined;
+  });
+  save(); closeModal(); render(); toast('Enregistré : ' + id);
+};
+
+/* ================= 7e. Modèle type pré-créé : Agglomération + Ville centre */
+
+function buildModeleType(d) {
+  var cree = { entites: 0, directions: 0, macros: 0, micros: 0 };
+  function ensure(coll, obj) {
+    d[coll] = d[coll] || [];
+    if (LuoCalc.byId(d, coll, obj.id)) return false;
+    d[coll].push(obj); return true;
+  }
+  // entités
+  if (ensure('entites', { id: 'ent-agglomeration', nom: 'Agglomération', code: 'AGGLO', active: true })) cree.entites++;
+  if (ensure('entites', { id: 'ent-ville-centre', nom: 'Ville centre', code: 'VC', active: true })) cree.entites++;
+  // SI types (transverses)
+  [['si-gestion', 'SI de gestion', 'gestion'], ['si-geographique', 'SI géographique', 'geographique'],
+   ['si-industriel', 'SI industriel', 'industriel'], ['si-batimentaire', 'SI bâtimentaire', 'batimentaire']
+  ].forEach(function (s) { ensure('systemes_information', { id: s[0], nom: s[1], type: s[2], sites_hebergement: [] }); });
+  // directions par entité
+  var DIRS = {
+    'ent-agglomeration': [
+      ['dir-dg-agg', 'Direction générale'], ['dir-dgs-agg', 'Direction générale des services'],
+      ['dir-dsi-agg', 'Direction des systèmes d\'information'], ['dir-rh-agg', 'DRH'],
+      ['dir-fin-agg', 'Direction des finances'], ['dir-jur-agg', 'Direction des affaires juridiques'],
+      ['dir-eau-agg', 'Direction eau et assainissement'], ['dir-dechets-agg', 'Direction déchets et propreté'],
+      ['dir-voirie-agg', 'Direction voirie et espaces publics']
+    ],
+    'ent-ville-centre': [
+      ['dir-dg-vc', 'Direction générale'], ['dir-dsi-vc', 'Direction des systèmes d\'information'],
+      ['dir-rh-vc', 'DRH'], ['dir-fin-vc', 'Direction des finances'], ['dir-jur-vc', 'Direction des affaires juridiques'],
+      ['dir-etat-civil-vc', 'État civil et élections'], ['dir-urba-vc', 'Urbanisme et aménagement'], ['dir-ccas-vc', 'CCAS — action sociale']
+    ]
+  };
+  Object.keys(DIRS).forEach(function (ent) {
+    DIRS[ent].forEach(function (x) {
+      if (ensure('directions', { id: x[0], nom: x[1], entite_id: ent })) cree.directions++;
+    });
+  });
+  // macros transverses (support/pilotage) — une seule fois, opérées par l'agglomération
+  var MACROS_TRANSVERSSES = [
+    ['mac-ori-strategiques', 'Définition des orientations stratégiques', 'pilotage', 'dir-dg-agg', 4],
+    ['mac-pilotage-qsc', 'Pilotage qualité, sécurité et continuité', 'pilotage', 'dir-dsi-agg', 4],
+    ['mac-portefeuille', 'Portefeuille de projets et services', 'pilotage', 'dir-dgs-agg', 3],
+    ['mac-fournisseurs', 'Gestion des fournisseurs', 'support', 'dir-fin-agg', 2],
+    ['mac-budget', 'Gestion budgétaire et comptable', 'support', 'dir-fin-agg', 3],
+    ['mac-rh', 'Gestion des ressources humaines', 'support', 'dir-rh-agg', 3]
+  ];
+  MACROS_TRANSVERSSES.forEach(function (m) {
+    if (ensure('processus_macro', { id: m[0], nom: m[1], typologie: m[2], direction_operante_id: m[3], niveau_sensibilite: m[4], validation: { date: today(), validateur: 'Direction générale' } })) cree.macros++;
+  });
+  // macros de réalisation par entité : [id, nom, direction_id]
+  var MACROS_METIER = {
+    'ent-agglomeration': [
+      ['mac-eau-agg', 'Production et distribution d\'eau potable', 'dir-eau-agg', 'imperatif'],
+      ['mac-assainissement-agg', 'Assainissement collectif', 'dir-eau-agg', '3_jours'],
+      ['mac-dechets-agg', 'Collecte et traitement des déchets', 'dir-dechets-agg', '1_semaine'],
+      ['mac-voirie-agg', 'Voirie et espaces publics', 'dir-voirie-agg', '1_semaine']
+    ],
+    'ent-ville-centre': [
+      ['mac-etat-civil-vc', 'État civil et élections', 'dir-etat-civil-vc', 'imperatif'],
+      ['mac-urba-vc', 'Urbanisme et aménagement', 'dir-urba-vc', '1_mois'],
+      ['mac-ccas-vc', 'Action sociale (CCAS)', 'dir-ccas-vc', '3_jours']
+    ]
+  };
+  Object.keys(MACROS_METIER).forEach(function (ent) {
+    MACROS_METIER[ent].forEach(function (m) {
+      if (ensure('processus_macro', { id: m[0], nom: m[1], typologie: 'realisation', niveau_sensibilite: 4, validation: { date: today(), validateur: 'Direction générale' } })) cree.macros++;
+      // un processus (micro) par macro métier, dans la direction concernée
+      var micId = m[0].replace('mac-', 'mic-');
+      if (ensure('processus_micro', { id: micId, nom: m[1], macro_id: m[0], direction_id: m[2], priorite_service: m[3], typologie: 'realisation', dependances_applications: [], notes_par_scenario: [] })) cree.micros++;
+    });
+  });
+  // micro transverses (un par macro transverse, dans la direction opérante) + micro locaux par direction métier (s'appuie_sur)
+  MACROS_TRANSVERSSES.forEach(function (m) {
+    var micT = m[0].replace('mac-', 'mic-');
+    if (ensure('processus_micro', { id: micT, nom: m[1], macro_id: m[0], direction_id: m[3], priorite_service: m[2] === 'pilotage' ? '1_trimestre' : '1_mois', typologie: m[2], dependances_applications: [], notes_par_scenario: [] })) cree.micros++;
+    // micro local dans chaque direction métier de chaque entité, qui s'appuie sur le transverse
+    Object.keys(MACROS_METIER).forEach(function (ent) {
+      MACROS_METIER[ent].forEach(function (mm) {
+        var micL = mm[0].replace('mac-', 'mic-local-') + '-' + m[0].replace('mac-', '');
+        ensure('processus_micro', { id: micL, nom: m[1] + ' — local', macro_id: m[0], direction_id: mm[2], priorite_service: '1_mois', typologie: 'support', ["s'appuie_sur"]: [micT], dependances_applications: [], notes_par_scenario: [] });
+      });
+    });
+  });
+  return cree;
+}
+
+LuoUI.loadModele = function () {
+  var d = state.data;
+  if (LuoCalc.byId(d, 'entites', 'ent-agglomeration')) { toast('Le modèle type est déjà présent (ent-agglomeration existe)'); return; }
+  var cree = buildModeleType(d);
+  save(); render();
+  toast('Modèle type créé : ' + cree.entites + ' entités, ' + cree.directions + ' directions, ' + cree.macros + ' processus macro, ' + cree.micros + ' processus micro');
 };
 
 /* ================= 15. Init ============================================= */

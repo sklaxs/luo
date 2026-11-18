@@ -18,12 +18,12 @@ actions. **Import / export JSON** complet dans l'onglet Données.
 |---|---|
 | **Tableau de bord** | KPIs, avancement par direction, processus prioritaires (note ≥ 12) pour le scénario courant |
 | **Sélection** | **Matrice 4×4** dépendance TIC × urgence à gauche, **cartographie à droite avec entourage rouge** ; présélection automatique **note ≥ 9**, forçage manuel en dessous ; sélection au niveau processus micro |
-| **Cartographie** | **Vue graphique par entité** (tuiles par typologie pilotage/réalisation/support, bandeaux latéraux, zone pointillée pour les transverses) : clic sur une tuile macro = déplier ses processus micro ; clic sur un micro = détail (priorité, note, dépendances, `s'appuie_sur`) **et activités du plan** ; entourage rouge = sélectionné « à traiter » ; « Vue liste » pour le CRUD complet (entités, sites, SI, directions, dépendances applis 1-4, note modifiable en atelier) |
+| **Cartographie** | **Vue graphique par entité, aplatie** : un seul niveau de tuiles = les **processus** (micro), groupés par typologie (pilotage/réalisation/support, transverses en zone pointillée), bandeaux latéraux. **Clic direct sur un processus = détail** (priorité, note, dépendances, `s'appuie_sur`) **et activités du plan** — le niveau macro reste dans le modèle (validation DG) mais n'est plus une étape de navigation. Entourage rouge = sélectionné « à traiter ». Onglets d'entité avec **✎ pour renommer** ; « Vue liste » pour le CRUD complet (✎ sur chaque ligne) |
 | **Applications** | Recherche nom/alias, import **CSV CMDB** (`;` UTF-8, réconciliation sur `id_externe`, absentes → `actif=false`, jamais supprimées), export CSV |
 | **Scénarios** | SI / sites / entités impactés, postulats, **applications impactées dérivées** |
 | **Plans** | Un plan par couple (processus, scénario), **assistant écran par écran** (étapes → activités 4 modes → procédures → actions récurrentes → fichiers à exporter → mots de passe → PC hors domaine → communication), avancement calculé depuis les étapes |
 | **Actions** | Suivi, actions en retard |
-| **Données** | Export/import JSON, charger l'exemple, réinitialiser |
+| **Données** | Export/import JSON, charger l'exemple, **modèle type pré-créé « Agglomération + Ville centre »** (entités, SI types, directions, processus pilotage/réalisation/support avec `s'appuie_sur` vers les transverses), réinitialiser |
 
 **Livrable 16:9** (gabarit exécutif : synthèse + 1 slide par processus sélectionné) : bouton
 « Livrable 16:9 » puis impression PDF (`@page 13.333in × 7.5in`), sur la charte graphique de Paul
