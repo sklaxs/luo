@@ -23,7 +23,7 @@ actions. **Import / export JSON** complet dans l'onglet Données.
 | **Scénarios** | SI / sites / entités impactés, postulats, **applications impactées dérivées** |
 | **Plans** | Un plan par couple (processus, scénario), **assistant écran par écran** (étapes → activités 4 modes → procédures → actions récurrentes → fichiers à exporter → mots de passe → PC hors domaine → communication), avancement calculé depuis les étapes |
 | **Actions** | Suivi, actions en retard |
-| **Données** | Export/import JSON, charger l'exemple, **modèle type pré-créé « Agglomération + Ville centre »** (entités, SI types, directions, processus pilotage/réalisation/support avec `s'appuie_sur` vers les transverses), réinitialiser |
+| **Données** | Export/import JSON, charger l'exemple, réinitialiser. **L'exemple embarqué = tes 2 entités : « Agglomération » (`ent-agglomeration`) et « Ville centre » (`ent-ville-centre`)** (voir `schema/exemple-donnees.json`) |
 
 **Livrable 16:9** (gabarit exécutif : synthèse + 1 slide par processus sélectionné) : bouton
 « Livrable 16:9 » puis impression PDF (`@page 13.333in × 7.5in`), sur la charte graphique de Paul
@@ -44,7 +44,7 @@ actions. **Import / export JSON** complet dans l'onglet Données.
 - `index.html` — structure (topbar + onglets)
 - `styles.css` — charte graphique Paul + composants Luo (matrice, cartographie, assistant)
 - `app.js` — état (IndexedDB), logique métier (exportée en `LuoCalc` pour tests node), rendus
-- `exemple-donnees.js` — jeu de données exemple (généré depuis `schema/exemple-donnees.json`)
+- `exemple-donnees.js` — jeu de données exemple (généré depuis `schema/exemple-donnees.json` : entités **Agglomération** et **Ville centre**)
 
 ## Tests
 

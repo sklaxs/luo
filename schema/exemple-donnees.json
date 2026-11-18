@@ -5,8 +5,8 @@
     "reference_pca": "Classeur rouge"
   },
   "entites": [
-    { "id": "ent-a", "nom": "Entite A", "code": "A", "active": true },
-    { "id": "ent-b", "nom": "Entite B", "code": "B", "active": true }
+    { "id": "ent-agglomeration", "nom": "Agglomération", "code": "AGGLO", "active": true },
+    { "id": "ent-ville-centre", "nom": "Ville centre", "code": "VC", "active": true }
   ],
   "systemes_information": [
     { "id": "si-gestion", "nom": "SI de gestion", "type": "gestion", "sites_hebergement": ["dc-paris", "dc-lyon"] },
@@ -18,17 +18,17 @@
     { "id": "site-usine-nord", "nom": "Usine nord", "localisation": "Nord, France", "type": "site_metier" }
   ],
   "directions": [
-    { "id": "dir-rh-a", "nom": "Direction RH - Entite A", "entite_id": "ent-a", "directeur": { "nom": "Durand", "fonction": "Directrice RH" } },
-    { "id": "dir-eau-b", "nom": "Direction eau et assainissement - Entite B", "entite_id": "ent-b", "directeur": { "nom": "Le Goff", "fonction": "Directeur" } },
-    { "id": "dir-jur-a", "nom": "Direction affaires generales et juridiques - Entite A", "entite_id": "ent-a", "directeur": { "nom": "Roche", "fonction": "Directrice" } }
+    { "id": "dir-rh-a", "nom": "Direction RH - Agglomération", "entite_id": "ent-agglomeration", "directeur": { "nom": "Durand", "fonction": "Directrice RH" } },
+    { "id": "dir-eau-b", "nom": "Direction eau et assainissement - Ville centre", "entite_id": "ent-ville-centre", "directeur": { "nom": "Le Goff", "fonction": "Directeur" } },
+    { "id": "dir-jur-a", "nom": "Direction affaires generales et juridiques - Agglomération", "entite_id": "ent-agglomeration", "directeur": { "nom": "Roche", "fonction": "Directrice" } }
   ],
   "applications": [
     {
       "id": "app-paie",
       "nom_officiel": "Silae Paie",
       "alias": [
-        { "entite_id": "ent-a", "nom_local": "Portail paie A" },
-        { "entite_id": "ent-b", "nom_local": "Mon espace paie" }
+        { "entite_id": "ent-agglomeration", "nom_local": "Portail paie Agglo" },
+        { "entite_id": "ent-ville-centre", "nom_local": "Espace paie Ville centre" }
       ],
       "editeur": "Silae",
       "categorie": "metier",
@@ -169,7 +169,7 @@
       ],
       "si_impactes": ["si-gestion"],
       "sites_impactes": ["dc-paris", "dc-lyon"],
-      "entites_impactees": ["ent-a", "ent-b"],
+      "entites_impactees": ["ent-agglomeration", "ent-ville-centre"],
       "duree_indisponibilite_estimee": { "min_jours": 3, "max_jours": 21 },
       "mesures_si_attendues": [
         {
@@ -195,7 +195,7 @@
       ],
       "si_impactes": ["si-indus"],
       "sites_impactes": ["site-usine-nord"],
-      "entites_impactees": ["ent-b"],
+      "entites_impactees": ["ent-ville-centre"],
       "duree_indisponibilite_estimee": { "min_jours": 2, "max_jours": 14 },
       "mesures_si_attendues": [
         {
@@ -338,7 +338,7 @@
   ],
   "utilisateurs": [
     { "id": "usr-rssi", "nom": "Anthony GUILLERM", "email": "anthony.guillerm@exemple.fr", "role": "rssi" },
-    { "id": "usr-board-b", "nom": "Membre du board entite B", "email": "board-b@exemple.fr", "role": "board", "entites_autorisees": ["ent-b"] },
+    { "id": "usr-board-vc", "nom": "Membre du board Ville centre", "email": "board-vc@exemple.fr", "role": "board", "entites_autorisees": ["ent-ville-centre"] },
     { "id": "usr-dir-eau", "nom": "Le Goff", "email": "legoff@exemple.fr", "role": "directeur", "directions_autorisees": ["dir-eau-b"] }
   ]
 }

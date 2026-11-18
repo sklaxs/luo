@@ -1,4 +1,5 @@
 // Donnees exemple Luo (schema v0.2) - genere depuis schema/exemple-donnees.json
+// Entités : Agglomération (ent-agglomeration) et Ville centre (ent-ville-centre)
 window.LUO_EXEMPLE = {
   "version_schema": "0.2.0",
   "organisation": {
@@ -7,15 +8,15 @@ window.LUO_EXEMPLE = {
   },
   "entites": [
     {
-      "id": "ent-a",
-      "nom": "Entite A",
-      "code": "A",
+      "id": "ent-agglomeration",
+      "nom": "Agglomération",
+      "code": "AGGLO",
       "active": true
     },
     {
-      "id": "ent-b",
-      "nom": "Entite B",
-      "code": "B",
+      "id": "ent-ville-centre",
+      "nom": "Ville centre",
+      "code": "VC",
       "active": true
     }
   ],
@@ -61,8 +62,8 @@ window.LUO_EXEMPLE = {
   "directions": [
     {
       "id": "dir-rh-a",
-      "nom": "Direction RH - Entite A",
-      "entite_id": "ent-a",
+      "nom": "Direction RH - Agglomération",
+      "entite_id": "ent-agglomeration",
       "directeur": {
         "nom": "Durand",
         "fonction": "Directrice RH"
@@ -70,8 +71,8 @@ window.LUO_EXEMPLE = {
     },
     {
       "id": "dir-eau-b",
-      "nom": "Direction eau et assainissement - Entite B",
-      "entite_id": "ent-b",
+      "nom": "Direction eau et assainissement - Ville centre",
+      "entite_id": "ent-ville-centre",
       "directeur": {
         "nom": "Le Goff",
         "fonction": "Directeur"
@@ -79,8 +80,8 @@ window.LUO_EXEMPLE = {
     },
     {
       "id": "dir-jur-a",
-      "nom": "Direction affaires generales et juridiques - Entite A",
-      "entite_id": "ent-a",
+      "nom": "Direction affaires generales et juridiques - Agglomération",
+      "entite_id": "ent-agglomeration",
       "directeur": {
         "nom": "Roche",
         "fonction": "Directrice"
@@ -93,12 +94,12 @@ window.LUO_EXEMPLE = {
       "nom_officiel": "Silae Paie",
       "alias": [
         {
-          "entite_id": "ent-a",
-          "nom_local": "Portail paie A"
+          "entite_id": "ent-agglomeration",
+          "nom_local": "Portail paie Agglo"
         },
         {
-          "entite_id": "ent-b",
-          "nom_local": "Mon espace paie"
+          "entite_id": "ent-ville-centre",
+          "nom_local": "Espace paie Ville centre"
         }
       ],
       "editeur": "Silae",
@@ -343,8 +344,8 @@ window.LUO_EXEMPLE = {
         "dc-lyon"
       ],
       "entites_impactees": [
-        "ent-a",
-        "ent-b"
+        "ent-agglomeration",
+        "ent-ville-centre"
       ],
       "duree_indisponibilite_estimee": {
         "min_jours": 3,
@@ -384,7 +385,7 @@ window.LUO_EXEMPLE = {
         "site-usine-nord"
       ],
       "entites_impactees": [
-        "ent-b"
+        "ent-ville-centre"
       ],
       "duree_indisponibilite_estimee": {
         "min_jours": 2,
@@ -599,12 +600,12 @@ window.LUO_EXEMPLE = {
       "role": "rssi"
     },
     {
-      "id": "usr-board-b",
-      "nom": "Membre du board entite B",
-      "email": "board-b@exemple.fr",
+      "id": "usr-board-vc",
+      "nom": "Membre du board Ville centre",
+      "email": "board-vc@exemple.fr",
       "role": "board",
       "entites_autorisees": [
-        "ent-b"
+        "ent-ville-centre"
       ]
     },
     {

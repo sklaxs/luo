@@ -784,7 +784,6 @@ function renderDonnees() {
     '<button class="btn" onclick="document.getElementById(\'json-in\').click()">Import JSON</button>' +
     '<input type="file" id="json-in" accept=".json,application/json" style="display:none" onchange="LuoUI.importJSON(this)">' +
     '<button class="btn" onclick="LuoUI.loadExemple()">Charger l\'exemple</button>' +
-    '<button class="btn" onclick="LuoUI.loadModele()">Modèle type : Agglomération + Ville centre</button>' +
     '<button class="btn danger" onclick="LuoUI.reset()">Réinitialiser</button>');
   html += '<div class="card"><div class="section-title">Contenu courant (schéma ' + esc(d.version_schema || '?') + ')</div>' +
     '<table class="data"><tbody>' + stats + '</tbody></table>' +
@@ -1542,99 +1541,6 @@ LuoUI.saveSimpleEdit = function (coll, id) {
     else it[key] = el.value || undefined;
   });
   save(); closeModal(); render(); toast('Enregistré : ' + id);
-};
-
-/* ================= 7e. Modèle type pré-créé : Agglomération + Ville centre */
-
-function buildModeleType(d) {
-  var cree = { entites: 0, directions: 0, macros: 0, micros: 0 };
-  function ensure(coll, obj) {
-    d[coll] = d[coll] || [];
-    if (LuoCalc.byId(d, coll, obj.id)) return false;
-    d[coll].push(obj); return true;
-  }
-  // entités
-  if (ensure('entites', { id: 'ent-agglomeration', nom: 'Agglomération', code: 'AGGLO', active: true })) cree.entites++;
-  if (ensure('entites', { id: 'ent-ville-centre', nom: 'Ville centre', code: 'VC', active: true })) cree.entites++;
-  // SI types (transverses)
-  [['si-gestion', 'SI de gestion', 'gestion'], ['si-geographique', 'SI géographique', 'geographique'],
-   ['si-industriel', 'SI industriel', 'industriel'], ['si-batimentaire', 'SI bâtimentaire', 'batimentaire']
-  ].forEach(function (s) { ensure('systemes_information', { id: s[0], nom: s[1], type: s[2], sites_hebergement: [] }); });
-  // directions par entité
-  var DIRS = {
-    'ent-agglomeration': [
-      ['dir-dg-agg', 'Direction générale'], ['dir-dgs-agg', 'Direction générale des services'],
-      ['dir-dsi-agg', 'Direction des systèmes d\'information'], ['dir-rh-agg', 'DRH'],
-      ['dir-fin-agg', 'Direction des finances'], ['dir-jur-agg', 'Direction des affaires juridiques'],
-      ['dir-eau-agg', 'Direction eau et assainissement'], ['dir-dechets-agg', 'Direction déchets et propreté'],
-      ['dir-voirie-agg', 'Direction voirie et espaces publics']
-    ],
-    'ent-ville-centre': [
-      ['dir-dg-vc', 'Direction générale'], ['dir-dsi-vc', 'Direction des systèmes d\'information'],
-      ['dir-rh-vc', 'DRH'], ['dir-fin-vc', 'Direction des finances'], ['dir-jur-vc', 'Direction des affaires juridiques'],
-      ['dir-etat-civil-vc', 'État civil et élections'], ['dir-urba-vc', 'Urbanisme et aménagement'], ['dir-ccas-vc', 'CCAS — action sociale']
-    ]
-  };
-  Object.keys(DIRS).forEach(function (ent) {
-    DIRS[ent].forEach(function (x) {
-      if (ensure('directions', { id: x[0], nom: x[1], entite_id: ent })) cree.directions++;
-    });
-  });
-  // macros transverses (support/pilotage) — une seule fois, opérées par l'agglomération
-  var MACROS_TRANSVERSSES = [
-    ['mac-ori-strategiques', 'Définition des orientations stratégiques', 'pilotage', 'dir-dg-agg', 4],
-    ['mac-pilotage-qsc', 'Pilotage qualité, sécurité et continuité', 'pilotage', 'dir-dsi-agg', 4],
-    ['mac-portefeuille', 'Portefeuille de projets et services', 'pilotage', 'dir-dgs-agg', 3],
-    ['mac-fournisseurs', 'Gestion des fournisseurs', 'support', 'dir-fin-agg', 2],
-    ['mac-budget', 'Gestion budgétaire et comptable', 'support', 'dir-fin-agg', 3],
-    ['mac-rh', 'Gestion des ressources humaines', 'support', 'dir-rh-agg', 3]
-  ];
-  MACROS_TRANSVERSSES.forEach(function (m) {
-    if (ensure('processus_macro', { id: m[0], nom: m[1], typologie: m[2], direction_operante_id: m[3], niveau_sensibilite: m[4], validation: { date: today(), validateur: 'Direction générale' } })) cree.macros++;
-  });
-  // macros de réalisation par entité : [id, nom, direction_id]
-  var MACROS_METIER = {
-    'ent-agglomeration': [
-      ['mac-eau-agg', 'Production et distribution d\'eau potable', 'dir-eau-agg', 'imperatif'],
-      ['mac-assainissement-agg', 'Assainissement collectif', 'dir-eau-agg', '3_jours'],
-      ['mac-dechets-agg', 'Collecte et traitement des déchets', 'dir-dechets-agg', '1_semaine'],
-      ['mac-voirie-agg', 'Voirie et espaces publics', 'dir-voirie-agg', '1_semaine']
-    ],
-    'ent-ville-centre': [
-      ['mac-etat-civil-vc', 'État civil et élections', 'dir-etat-civil-vc', 'imperatif'],
-      ['mac-urba-vc', 'Urbanisme et aménagement', 'dir-urba-vc', '1_mois'],
-      ['mac-ccas-vc', 'Action sociale (CCAS)', 'dir-ccas-vc', '3_jours']
-    ]
-  };
-  Object.keys(MACROS_METIER).forEach(function (ent) {
-    MACROS_METIER[ent].forEach(function (m) {
-      if (ensure('processus_macro', { id: m[0], nom: m[1], typologie: 'realisation', niveau_sensibilite: 4, validation: { date: today(), validateur: 'Direction générale' } })) cree.macros++;
-      // un processus (micro) par macro métier, dans la direction concernée
-      var micId = m[0].replace('mac-', 'mic-');
-      if (ensure('processus_micro', { id: micId, nom: m[1], macro_id: m[0], direction_id: m[2], priorite_service: m[3], typologie: 'realisation', dependances_applications: [], notes_par_scenario: [] })) cree.micros++;
-    });
-  });
-  // micro transverses (un par macro transverse, dans la direction opérante) + micro locaux par direction métier (s'appuie_sur)
-  MACROS_TRANSVERSSES.forEach(function (m) {
-    var micT = m[0].replace('mac-', 'mic-');
-    if (ensure('processus_micro', { id: micT, nom: m[1], macro_id: m[0], direction_id: m[3], priorite_service: m[2] === 'pilotage' ? '1_trimestre' : '1_mois', typologie: m[2], dependances_applications: [], notes_par_scenario: [] })) cree.micros++;
-    // micro local dans chaque direction métier de chaque entité, qui s'appuie sur le transverse
-    Object.keys(MACROS_METIER).forEach(function (ent) {
-      MACROS_METIER[ent].forEach(function (mm) {
-        var micL = mm[0].replace('mac-', 'mic-local-') + '-' + m[0].replace('mac-', '');
-        ensure('processus_micro', { id: micL, nom: m[1] + ' — local', macro_id: m[0], direction_id: mm[2], priorite_service: '1_mois', typologie: 'support', ["s'appuie_sur"]: [micT], dependances_applications: [], notes_par_scenario: [] });
-      });
-    });
-  });
-  return cree;
-}
-
-LuoUI.loadModele = function () {
-  var d = state.data;
-  if (LuoCalc.byId(d, 'entites', 'ent-agglomeration')) { toast('Le modèle type est déjà présent (ent-agglomeration existe)'); return; }
-  var cree = buildModeleType(d);
-  save(); render();
-  toast('Modèle type créé : ' + cree.entites + ' entités, ' + cree.directions + ' directions, ' + cree.macros + ' processus macro, ' + cree.micros + ' processus micro');
 };
 
 /* ================= 15. Init ============================================= */
