@@ -108,6 +108,9 @@ var state = {
   forces: {},            // id micro -> true (forçage manuel < seuil)
   planId: null,          // plan ouvert
   wizardStep: 0,
+  entiteId: 'toutes',    // filtre cartographie par entité
+  macroOuvert: null,     // macro dont la rangée de micro est dépliée
+  cartoVue: 'graphique', // 'graphique' | 'liste'
   db: null
 };
 
@@ -376,9 +379,9 @@ function procItem(m, eff) {
 
 /* ================= 7. Cartographie (entités, sites, SI, directions, processus) ============ */
 
-function renderCartographie() {
+function renderCartoListe() {
   var d = state.data, main = document.getElementById('main');
-  var html = pageHead('Cartographie', 'Entités, sites, SI, directions, processus macro et micro (typologie ISO 9001).',
+  var html = pageHead('Cartographie (vue liste)', 'Entités, sites, SI, directions, processus macro et micro (typologie ISO 9001).',
     '<button class="btn" onclick="LuoUI.addEntite()">+ Entité</button>' +
     '<button class="btn" onclick="LuoUI.addSite()">+ Site</button>' +
     '<button class="btn" onclick="LuoUI.addSI()">+ SI</button>' +
@@ -1286,6 +1289,146 @@ LuoUI.reset = function () {
 };
 
 LuoUI.printDeck = printDeck;
+
+/* ================= 7b. Cartographie graphique (vue par entité) ========== */
+
+var TYPO_BANDS = [
+  ['pilotage', 'Piloter', '#7c3aed'],
+  ['realisation', 'Réaliser — valeur pour l\'usager', '#0891b2'],
+  ['support', 'Support', '#d97706'],
+  ['autre', 'Autre', '#64748b']
+];
+
+function dirsDeEntite(d, ent) {
+  return (d.directions || []).filter(function (x) { return x.entite_id === ent; }).map(function (x) { return x.id; });
+}
+function macrosVisibles(d) {
+  var macros = d.processus_macro || [];
+  if (state.entiteId === 'toutes') return macros;
+  var dirsEnt = dirsDeEntite(d, state.entiteId);
+  var microsEnt = (d.processus_micro || []).filter(function (m) { return dirsEnt.indexOf(m.direction_id) >= 0; }).map(function (m) { return m.macro_id; });
+  return macros.filter(function (mac) {
+    if (mac.direction_operante_id) return dirsEnt.indexOf(mac.direction_operante_id) >= 0; // transverse opéré dans l'entité
+    return microsEnt.indexOf(mac.id) >= 0;
+  });
+}
+function microsDeMacro(d, macId) {
+  var ms = (d.processus_micro || []).filter(function (m) { return m.macro_id === macId; });
+  if (state.entiteId === 'toutes') return ms;
+  var dirsEnt = dirsDeEntite(d, state.entiteId);
+  return ms.filter(function (m) { return dirsEnt.indexOf(m.direction_id) >= 0; });
+}
+
+function renderCartographie() {
+  var d = state.data, main = document.getElementById('main');
+  if (state.cartoVue === 'liste') { renderCartoListe(); return; }
+  var entites = d.entites || [];
+  var tabs = '<button class="entite-tab' + (state.entiteId === 'toutes' ? ' active' : '') + '" onclick="LuoUI.setEntite(\'toutes\')">Toutes entités</button>' +
+    entites.map(function (e) {
+      return '<button class="entite-tab' + (state.entiteId === e.id ? ' active' : '') + '" onclick="LuoUI.setEntite(\'' + esc(e.id) + '\')">' + esc(e.nom) + '</button>';
+    }).join('');
+  var entNom = state.entiteId !== 'toutes' ? ((LuoCalc.byId(d, 'entites', state.entiteId) || {}).nom || '') : '';
+  var html = pageHead('Cartographie des processus' + (entNom ? ' — ' + esc(entNom) : ''),
+    'Vue graphique par entité. Clic sur une tuile = déplier ses processus micro ; clic sur un micro = détail et activités. Entourage rouge = sélectionné « à traiter ».',
+    '<span class="entite-tabs">' + tabs + '</span>' +
+    '<button class="btn small" onclick="LuoUI.setCartoVue(\'liste\')">Vue liste</button>' +
+    '<button class="btn" onclick="LuoUI.addEntite()">+ Entité</button>' +
+    '<button class="btn" onclick="LuoUI.addSite()">+ Site</button>' +
+    '<button class="btn" onclick="LuoUI.addSI()">+ SI</button>' +
+    '<button class="btn" onclick="LuoUI.addDirection()">+ Direction</button>' +
+    '<button class="btn primary" onclick="LuoUI.addMacro()">+ Macro</button>' +
+    '<button class="btn primary" onclick="LuoUI.addMicro()">+ Micro</button>');
+  var eff = selectionEffective();
+  var macros = macrosVisibles(d);
+  html += '<div class="carto-map">' +
+    '<div class="carto-side left">Besoins des directions utilisatrices · Orientations</div>' +
+    '<div class="carto-side right">Valeur produite pour les usagers</div>';
+  if (!macros.length) html += '<div class="empty">Aucun processus macro pour cette entité — ajoutez-en avec « + Macro ».</div>';
+  TYPO_BANDS.forEach(function (band) {
+    var typ = band[0], label = band[1], color = band[2];
+    var list = macros.filter(function (m) { return (m.typologie || 'autre') === typ; });
+    if (!list.length) return;
+    var transverses = list.filter(function (m) { return !!m.direction_operante_id; });
+    var propres = list.filter(function (m) { return !m.direction_operante_id; });
+    function tile(m) {
+      var ms = microsDeMacro(d, m.id);
+      var selCount = ms.filter(function (x) { return eff[x.id]; }).length;
+      return '<div class="carto-tile typ-' + typ + (state.macroOuvert === m.id ? ' ouverte' : '') + '" onclick="LuoUI.toggleMacro(\'' + esc(m.id) + '\')">' +
+        '<span class="code">' + esc(m.id) + '</span>' +
+        '<span class="label">' + esc(m.nom) + '</span>' +
+        '<span class="meta">sensibilité ' + (m.niveau_sensibilite || '—') + ' · ' + ms.length + ' micro' + (selCount ? ' · ' + selCount + ' sélectionné(s)' : '') + '</span></div>';
+    }
+    function subrow(m) {
+      if (state.macroOuvert !== m.id) return '';
+      var ms = microsDeMacro(d, m.id);
+      if (!ms.length) return '<div class="carto-subrow"><span class="legend-inline">Aucun processus micro rattaché — ajoutez-en avec « + Micro ».</span></div>';
+      return '<div class="carto-subrow">' + ms.map(function (mm) {
+        var dir = LuoCalc.byId(d, 'directions', mm.direction_id);
+        var n = state.scenarioId ? LuoCalc.noteAffichee(d, mm, state.scenarioId) : null;
+        return '<div class="carto-sub' + (eff[mm.id] ? ' selectionne' : '') + '" onclick="LuoUI.openMicroDetail(\'' + esc(mm.id) + '\')">' +
+          '<span class="code">' + esc(mm.id) + ' · ' + esc(dir ? dir.nom : '—') + '</span>' +
+          '<span class="label">' + esc(mm.nom) + '</span>' +
+          '<span class="meta">' + esc(mm.priorite_service) + ' · ' + notePill(n) + '</span></div>';
+      }).join('') + '</div>';
+    }
+    html += '<div class="carto-band"><span class="dot" style="background:' + color + '"></span>' + esc(label) + '</div>';
+    if (propres.length) {
+      html += '<div class="carto-row">' + propres.map(tile).join('') + '</div>';
+      propres.forEach(function (m) { html += subrow(m); });
+    }
+    if (transverses.length) {
+      html += '<div class="carto-dashed"><div class="carto-band"><span class="dot" style="background:' + color + '"></span>' + esc(label) + ' — transverses</div>' +
+        '<div class="carto-row">' + transverses.map(tile).join('') + '</div>';
+      transverses.forEach(function (m) { html += subrow(m); });
+      html += '</div>';
+    }
+  });
+  html += '</div>';
+  html += '<div class="carto-legend"><span><span class="dot" style="background:#7c3aed"></span>pilotage</span><span><span class="dot" style="background:#0891b2"></span>réalisation</span><span><span class="dot" style="background:#d97706"></span>support</span><span><span class="dot" style="background:var(--danger)"></span>sélectionné « à traiter »</span></div>';
+  main.innerHTML = html;
+}
+
+LuoUI.setEntite = function (id) { state.entiteId = id; state.macroOuvert = null; render(); };
+LuoUI.setCartoVue = function (v) { state.cartoVue = v; render(); };
+LuoUI.toggleMacro = function (id) { state.macroOuvert = (state.macroOuvert === id ? null : id); render(); };
+
+LuoUI.openMicroDetail = function (id) {
+  var d = state.data;
+  var m = LuoCalc.byId(d, 'processus_micro', id);
+  if (!m) return;
+  var dir = LuoCalc.byId(d, 'directions', m.direction_id);
+  var mac = m.macro_id ? LuoCalc.byId(d, 'processus_macro', m.macro_id) : null;
+  var sc = LuoCalc.byId(d, 'scenarios', state.scenarioId);
+  var n = sc ? LuoCalc.noteAffichee(d, m, sc.id) : null;
+  var deps = (m.dependances_applications || []).map(function (x) {
+    var a = LuoCalc.byId(d, 'applications', x.application_id);
+    return esc(a ? a.nom_officiel : x.application_id) + ' — niveau ' + x.niveau + ' ' + esc(LuoCalc.NIVEAU_LIB[x.niveau] || '');
+  }).join('<br>') || '—';
+  var ap = (m["s'appuie_sur"] || []).map(function (x) { var p = LuoCalc.byId(d, 'processus_micro', x); return esc(p ? p.nom : x); }).join(', ') || '—';
+  var plans = (d.plans_continuite || []).filter(function (p) { return p.processus_id === id; });
+  var planSc = sc ? plans.filter(function (p) { return p.scenario_id === sc.id; })[0] : plans[0];
+  var acts = (planSc && planSc.activites) ? planSc.activites : [];
+  var actHtml = acts.length ? acts.map(function (a) {
+    return '<div class="list-row"><span class="badge p' + (['maintenue', 'degradee', 'arrete', 'nouvelle'].indexOf(a.mode) + 1) + '">' + esc(a.mode) + '</span> <span class="grow"><strong>' + esc(a.nom) + '</strong><br><span class="legend-inline">' + esc(a.modalites || '') + '</span></span></div>';
+  }).join('') : '<div class="empty">Aucune activité définie' + (planSc ? ' pour ce plan' : '') + '.</div>';
+  modal('<h3>' + esc(m.nom) + '</h3>' +
+    '<dl class="kv">' +
+    '<dt>id</dt><dd>' + esc(m.id) + '</dd>' +
+    '<dt>Macro</dt><dd>' + esc(mac ? mac.nom : '—') + '</dd>' +
+    '<dt>Direction</dt><dd>' + esc(dir ? dir.nom : '—') + '</dd>' +
+    '<dt>Typologie</dt><dd>' + esc(m.typologie || (mac ? mac.typologie : '—')) + '</dd>' +
+    '<dt>Priorité de service</dt><dd>' + esc(m.priorite_service) + '</dd>' +
+    '<dt>Note' + (sc ? ' — ' + esc(sc.nom.slice(0, 40)) + '…' : '') + '</dt><dd>' + notePill(n) + '</dd>' +
+    '<dt>S\'appuie sur</dt><dd>' + ap + '</dd>' +
+    '<dt>Dépendances applis</dt><dd>' + deps + '</dd>' +
+    '</dl>' +
+    '<div class="section-title">Activités du processus' + (planSc ? ' — plan ' + esc(planSc.id) : '') + '</div>' + actHtml +
+    '<div class="modal-actions">' +
+    (planSc ? '<button class="btn primary" onclick="LuoUI.openPlan(\'' + esc(planSc.id) + '\')">Ouvrir le plan</button>' : '') +
+    '<button class="btn" onclick="LuoUI.editMicro(\'' + esc(m.id) + '\')">Éditer</button>' +
+    '<button class="btn danger" onclick="LuoUI.del(\'processus_micro\',\'' + esc(m.id) + '\');closeModal()">Supprimer</button>' +
+    '<button class="btn" onclick="closeModal()">Fermer</button></div>');
+};
 
 /* ================= 15. Init ============================================= */
 

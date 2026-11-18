@@ -18,7 +18,7 @@ actions. **Import / export JSON** complet dans l'onglet Données.
 |---|---|
 | **Tableau de bord** | KPIs, avancement par direction, processus prioritaires (note ≥ 12) pour le scénario courant |
 | **Sélection** | **Matrice 4×4** dépendance TIC × urgence à gauche, **cartographie à droite avec entourage rouge** ; présélection automatique **note ≥ 9**, forçage manuel en dessous ; sélection au niveau processus micro |
-| **Cartographie** | CRUD entités, sites, SI, directions, processus macro/micro (typologie, `s'appuie_sur`, dépendances applis 1-4, note modifiable en atelier) |
+| **Cartographie** | **Vue graphique par entité** (tuiles par typologie pilotage/réalisation/support, bandeaux latéraux, zone pointillée pour les transverses) : clic sur une tuile macro = déplier ses processus micro ; clic sur un micro = détail (priorité, note, dépendances, `s'appuie_sur`) **et activités du plan** ; entourage rouge = sélectionné « à traiter » ; « Vue liste » pour le CRUD complet (entités, sites, SI, directions, dépendances applis 1-4, note modifiable en atelier) |
 | **Applications** | Recherche nom/alias, import **CSV CMDB** (`;` UTF-8, réconciliation sur `id_externe`, absentes → `actif=false`, jamais supprimées), export CSV |
 | **Scénarios** | SI / sites / entités impactés, postulats, **applications impactées dérivées** |
 | **Plans** | Un plan par couple (processus, scénario), **assistant écran par écran** (étapes → activités 4 modes → procédures → actions récurrentes → fichiers à exporter → mots de passe → PC hors domaine → communication), avancement calculé depuis les étapes |
